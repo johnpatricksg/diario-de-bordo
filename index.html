@@ -228,34 +228,16 @@ function trend(curr, prev, inverted) {
 const SUPA_URL = "https://ppxeuzibuvakcnnqkevp.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBweGV1emlidXZha2NubnFrZXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyOTU4NDEsImV4cCI6MjA5Mjg3MTg0MX0.h8e9Wj5Gbjv97dk3-4dqOxN9JAR1xZw9ggrVHMm94W0";
 
-// localStorage como cache local imediato
+// localStorage = fonte principal (instantâneo)
 function lsGet(key) { try { return JSON.parse(localStorage.getItem(key)); } catch(e) { return null; } }
 function lsSet(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {} }
 
-async function getStorage(key) {
-  // 1. Retorna do localStorage imediatamente (sem delay)
-  const cached = lsGet(key);
-  // 2. Tenta buscar do Supabase em background e atualiza se tiver dado mais novo
-  try {
-    const res = await fetch(`${SUPA_URL}/rest/v1/diario?id=eq.${encodeURIComponent(key)}&select=conteudo`, {
-      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.length > 0) {
-        const val = JSON.parse(data[0].conteudo);
-        lsSet(key, val); // atualiza cache local
-        return val;
-      }
-    }
-  } catch(e) {}
-  return cached;
-}
+// Síncrono para renderização (usa localStorage)
+function getStorage(key) { return lsGet(key); }
 
+// Salva local + nuvem em background
 async function setStorage(key, val) {
-  // Salva local imediatamente
   lsSet(key, val);
-  // Envia para nuvem
   try {
     const res = await fetch(`${SUPA_URL}/rest/v1/diario`, {
       method: 'POST',
@@ -267,8 +249,21 @@ async function setStorage(key, val) {
       },
       body: JSON.stringify({ id: key, conteudo: JSON.stringify(val), atualizado_em: new Date().toISOString() })
     });
-    if (!res.ok) { const err = await res.text(); console.error('Supabase erro:', err); }
   } catch(e) { console.error('Erro ao salvar na nuvem:', e); }
+}
+
+// Sincroniza dados da nuvem para o localStorage em background
+async function syncFromCloud() {
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/diario?select=id,conteudo`, {
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      data.forEach(row => { try { lsSet(row.id, JSON.parse(row.conteudo)); } catch(e) {} });
+      renderAll(); // re-renderiza com dados da nuvem
+    }
+  } catch(e) {}
 }
 
 function renderSidebar() {
@@ -297,7 +292,7 @@ function renderWeekTabs() {
 
 function selectWeek(k) { activeWeek = k; renderAll(); }
 
-async function renderWeek() {
+function renderWeek() {
   const c = CLIENTS[activeClient];
   const sem = c.semanas[activeWeek];
   const hasMeta = c.plataformas.includes('meta');
@@ -352,7 +347,7 @@ async function renderWeek() {
 
   const notaKey = `nota__${activeClient}__${activeWeek}`;
   let savedNota = '';
-  try { savedNota = (await getStorage(notaKey)) || ''; } catch(e) {}
+  try { savedNota = getStorage(notaKey) || ''; } catch(e) {}
   const otimKey = `otim__${activeClient}__${activeWeek}`;
   const otims = getStorage(otimKey) || [];
   const colors = {done:'#1D9E75', pending:'#EF9F27', todo:'#B4B2A9'};
@@ -476,35 +471,36 @@ async function saveData() {
   }
 }
 
-async function getOtims() { return (await getStorage(`otim__${activeClient}__${activeWeek}`)) || []; }
+function getOtims() { return getStorage(`otim__${activeClient}__${activeWeek}`) || []; }
 async function saveOtims(arr) { await setStorage(`otim__${activeClient}__${activeWeek}`, arr); }
 
 async function addOtim() {
-  const arr = await getOtims(); arr.push({text:'', tag:'', status:'todo'}); await saveOtims(arr); renderAll();
+  const arr = getOtims(); arr.push({text:'', tag:'', status:'todo'}); await saveOtims(arr); renderAll();
 }
 
 async function cycleStatus(i) {
-  const arr = await getOtims();
+  const arr = getOtims();
   const cycle = {todo:'pending', pending:'done', done:'todo'};
   arr[i].status = cycle[arr[i].status || 'todo'];
   await saveOtims(arr); renderAll();
 }
 
 async function updateOtim(i, field, val) {
-  const arr = await getOtims(); arr[i][field] = val; await saveOtims(arr);
+  const arr = getOtims(); arr[i][field] = val; await saveOtims(arr);
 }
 
-async function renderAll() {
+function renderAll() {
   const c = CLIENTS[activeClient];
   document.getElementById('main-title').textContent = activeClient;
   document.getElementById('main-sub').textContent = c.plataformas.map(p => p === 'meta' ? 'Meta Ads' : 'Google Ads').join(' + ') + ` · Orçamento R$ ${(c.orcamento.meta + c.orcamento.google).toLocaleString('pt-BR')}/mês`;
   renderSidebar();
   renderWeekTabs();
   if (activeWeek === 'compare') renderCompare();
-  else await renderWeek();
+  else renderWeek();
 }
 
-(async () => { await renderAll(); })();
+renderAll();
+syncFromCloud();
 </script>
 </body>
 </html>
