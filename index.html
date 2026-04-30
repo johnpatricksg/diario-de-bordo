@@ -128,7 +128,7 @@
       <h1 id="main-title">Carregando...</h1>
       <p id="main-sub"></p>
     </div>
-    <span class="badge">Abril 2025</span>
+    <span class="badge">Abr 2025 · Abr 2026</span>
   </div>
   <div class="week-tabs" id="week-tabs"></div>
   <div id="content"></div>
@@ -143,9 +143,10 @@ const CLIENTS = {
     orcamento: {meta: 342, google: 0},
     plataformas: ['meta'],
     semanas: {
-      's1': {periodo:'03/04 – 10/04', meta:{alcance:13359, visitas:431, seguidores:44, investimento:72.17}},
-      's2': {periodo:'13/04 – 20/04', meta:{alcance:5208, visitas:189, seguidores:40, investimento:76.88}},
-      's3': {periodo:'20/04 – 24/04', meta:{alcance:4751, visitas:113, seguidores:26, investimento:44.85}},
+      'abr25-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:13359, visitas:431, seguidores:44, investimento:72.17}},
+      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:5208, visitas:189, seguidores:40, investimento:76.88}},
+      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:4751, visitas:113, seguidores:26, investimento:44.85}},
+      'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:26817, visitas:866, seguidores:126, investimento:241.75}},
     }
   },
   'Dr. Gustavo': {
@@ -153,9 +154,10 @@ const CLIENTS = {
     orcamento: {meta: 1200, google: 0},
     plataformas: ['meta'],
     semanas: {
-      's1': {periodo:'03/04 – 10/04', meta:{alcance:61414, visitas:330, seguidores:29, investimento:272.54}},
-      's2': {periodo:'13/04 – 20/04', meta:{alcance:44019, visitas:357, seguidores:59, investimento:240.72}},
-      's3': {periodo:'20/04 – 24/04', meta:{alcance:31583, visitas:231, seguidores:65, investimento:165.69}},
+      'abr25-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:61414, visitas:330, seguidores:29, investimento:272.54}},
+      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:44019, visitas:357, seguidores:59, investimento:240.72}},
+      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:31583, visitas:231, seguidores:65, investimento:165.69}},
+      'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:130518, visitas:1325, seguidores:225, investimento:987.25}},
     }
   },
   'Dr. Leonardo': {
@@ -163,9 +165,10 @@ const CLIENTS = {
     orcamento: {meta: 1200, google: 1200},
     plataformas: ['meta','google'],
     semanas: {
-      's1': {periodo:'03/04 – 10/04', meta:{alcance:31020, conversas:17, investimento:316.93}, google:{cliques:26, cpc:5.57, conversas:6, investimento:145}},
-      's2': {periodo:'13/04 – 20/04', meta:{alcance:31020, conversas:22, investimento:304.60}, google:{cliques:8, cpc:8.43, conversas:4, investimento:67.44}},
-      's3': {periodo:'20/04 – 24/04', meta:{alcance:20268, conversas:17, investimento:200.08}, google:{cliques:45, cpc:5.50, conversas:5, investimento:247}},
+      'abr25-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:31020, conversas:17, investimento:316.93}, google:{cliques:26, cpc:5.57, conversas:6, investimento:145}},
+      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:31020, conversas:22, investimento:304.60}, google:{cliques:8, cpc:8.43, conversas:4, investimento:67.44}},
+      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:20268, conversas:17, investimento:200.08}, google:{cliques:45, cpc:5.50, conversas:5, investimento:247}},
+      'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:100562, conversas:79, investimento:1167.29}, google:{cliques:129, cpc:5.68, conversas:16, investimento:732.88}},
     }
   },
   'Allura': {
@@ -173,9 +176,10 @@ const CLIENTS = {
     orcamento: {meta: 1300, google: 0},
     plataformas: ['meta'],
     semanas: {
-      's1': {periodo:'03/04 – 10/04', meta:{alcance:13986, conversas:3, investimento:227.38}},
-      's2': {periodo:'13/04 – 20/04', meta:{alcance:6006, conversas:7, investimento:236.64}},
-      's3': {periodo:'20/04 – 24/04', meta:{alcance:5795, conversas:11, investimento:149.44}},
+      'abr25-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:13986, conversas:3, investimento:227.38}},
+      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:6006, conversas:7, investimento:236.64}},
+      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:5795, conversas:11, investimento:149.44}},
+      'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:51426, conversas:44, investimento:961.44}},
     }
   },
   'Health Lounge': {
@@ -183,35 +187,38 @@ const CLIENTS = {
     orcamento: {meta: 1000, google: 600},
     plataformas: ['meta','google'],
     semanas: {
-      's1': {periodo:'03/04 – 10/04', meta:{alcance:20061, conversas:5, investimento:209.79}, google:{cliques:51, cpc:4.05, impressoes:143614, conversas:0, investimento:206.57}},
-      's2': {periodo:'13/04 – 20/04', meta:{alcance:25413, conversas:7, investimento:86.90}, google:{cliques:26, cpc:3.47, conversas:3, investimento:90.22}},
-      's3': {periodo:'20/04 – 24/04', meta:{alcance:1718, conversas:9, investimento:133.56}, google:{cliques:18, cpc:5.81, conversas:3, investimento:105}},
+      'abr25-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:20061, conversas:5, investimento:209.79}, google:{cliques:51, cpc:4.05, impressoes:143614, conversas:0, investimento:206.57}},
+      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:25413, conversas:7, investimento:86.90}, google:{cliques:26, cpc:3.47, conversas:3, investimento:90.22}},
+      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:1718, conversas:9, investimento:133.56}, google:{cliques:18, cpc:5.81, conversas:3, investimento:105}},
+      'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:15347, conversas:28, investimento:703.87}, google:{cliques:385, cpc:1.51, conversas:11, investimento:583.10}},
     }
   },
   'Aliv': {
-    objetivo: 'Aumentar leads no WhatsApp para fechar consultas. Meta: engajamento WhatsApp. Google Ads recém iniciado.',
+    objetivo: 'Aumentar leads no WhatsApp para fechar consultas. Meta: engajamento WhatsApp. Google Ads.',
     orcamento: {meta: 1000, google: 500},
     plataformas: ['meta','google'],
     semanas: {
-      's1': {periodo:'03/04 – 10/04', meta:{alcance:4739, conversas:25, investimento:362.25}},
-      's2': {periodo:'13/04 – 20/04', meta:{alcance:937, conversas:3, investimento:64}},
-      's3': {periodo:'20/04 – 24/04', meta:{alcance:1147, conversas:4, investimento:134.59}},
+      'abr25-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:4739, conversas:25, investimento:362.25}},
+      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:937, conversas:3, investimento:64}},
+      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:1147, conversas:4, investimento:134.59}},
+      'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:1917, conversas:14, investimento:355.90}, google:{cliques:101, cpc:3.22, conversas:11, investimento:324.98}},
     }
   },
   'Dra. Fernanda': {
-    objetivo: 'Aumentar leads no WhatsApp para fechar consultas. Conta abastecida em 15/04. Campanha: engajamento WhatsApp (Meta).',
+    objetivo: 'Aumentar leads no WhatsApp e engajamento do perfil. Meta: campanha de mensagens + engajamento.',
     orcamento: {meta: 600, google: 0},
     plataformas: ['meta'],
     semanas: {
-      's2': {periodo:'13/04 – 20/04', meta:{alcance:2295, conversas:14, investimento:62.62}},
-      's3': {periodo:'20/04 – 24/04', meta:{alcance:5109, conversas:19, investimento:103.53}},
+      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:2295, conversas:14, investimento:62.62}},
+      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:5109, conversas:19, investimento:103.53}},
+      'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:21713, conversas:41, visitas:972, seguidores:68, investimento:346.86}},
     }
   },
 };
 
-const WEEK_LABELS = {s1:'Sem 1 · 03–10/04', s2:'Sem 2 · 13–20/04', s3:'Sem 3 · 20–24/04'};
+const WEEK_LABELS = {'abr25-s1':'Sem 1 · 03–10/04/25', 'abr25-s2':'Sem 2 · 13–20/04/25', 'abr25-s3':'Sem 3 · 20–24/04/25', 'abr26':'Abril 2026 · Mensal'};
 let activeClient = 'Fabiana';
-let activeWeek = 's3';
+let activeWeek = 'abr26';
 
 const fmt = n => n != null ? n.toLocaleString('pt-BR') : '—';
 const fmtR = n => n != null ? 'R$ ' + (Math.round(n * 100) / 100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
@@ -286,7 +293,7 @@ function renderWeekTabs() {
   let html = sems.map(k =>
     `<div class="wtab ${k === activeWeek ? 'active' : ''}" onclick="selectWeek('${k}')">${WEEK_LABELS[k]}</div>`
   ).join('');
-  html += `<div class="wtab compare ${activeWeek === 'compare' ? 'active' : ''}" onclick="selectWeek('compare')">Comparativo mensal</div>`;
+  html += `<div class="wtab compare ${activeWeek === 'compare' ? 'active' : ''}" onclick="selectWeek('compare')">Comparativo</div>`;
   document.getElementById('week-tabs').innerHTML = html;
 }
 
