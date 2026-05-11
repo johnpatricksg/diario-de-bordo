@@ -307,96 +307,104 @@ function toggleCompareWeek(k){
 
 // ── Render Content ──
 async function render(){
-  try{
   renderNav();
   if(activeView==='compare'){renderCompare();return;}
   if(activeView==='month'){renderMonthTotal();return;}
-  const c=CLIENTS[clientName];
-  const sem=c.semanas[activeWeek];
-  if(!sem){document.getElementById('content').innerHTML='<div class="empty">Sem dados para este período.</div>';return;}
 
-  const hasMeta=c.plataformas.includes('meta');
-  const hasGoogle=c.plataformas.includes('google');
-  const totalOrc=c.orcamento.meta+c.orcamento.google;
-  const investMeta=sem.meta?.investimento||0;
-  const investGoogle=sem.google?.investimento||0;
-  const totalInvest=investMeta+investGoogle;
-  const pct=totalOrc>0?Math.min(Math.round((totalInvest/totalOrc)*100),100):0;
+  const c = CLIENTS[clientName];
+  const sem = c.semanas[activeWeek];
 
-  let html=`<div class="card"><div class="card-title">Investimento</div>
-    <div class="kpi-row">
-      <div class="kpi"><div class="kpi-l">Orçamento mensal</div><div class="kpi-v">${fmtR(totalOrc)}</div></div>
-      <div class="kpi"><div class="kpi-l">Investido no período</div><div class="kpi-v">${fmtR(totalInvest)}</div></div>
-    </div>
-    <div class="budget-bar-wrap"><div class="budget-bar" style="width:${pct}%"></div></div>
-  </div>`;
-
-  if(hasMeta&&sem.meta){
-    const m=sem.meta;
-    const cpConv=m.conversas>0?Math.round(m.investimento/m.conversas*100)/100:null;
-    const cpSeg=m.seguidores>0?Math.round(m.investimento/m.seguidores*100)/100:null;
-    const cpm=m.alcance>0?Math.round((m.investimento/m.alcance)*1000*100)/100:null;
-    html+=`<div class="card"><div class="card-title"><span class="platform-badge badge-meta">Meta Ads</span></div><div class="metric-grid">`;
-    if(m.obs) html+=`<div class="warn-box">⚠️ ${m.obs}</div>`;
-    html+=`<div class="metric"><div class="metric-label">Alcance</div><div class="metric-value">${fmt(m.alcance)}</div></div>`;
-    if(m.visitas!=null) html+=`<div class="metric"><div class="metric-label">Visitas ao perfil</div><div class="metric-value">${fmt(m.visitas)}</div></div>`;
-    if(m.seguidores!=null) html+=`<div class="metric"><div class="metric-label">Novos seguidores</div><div class="metric-value">+${fmt(m.seguidores)}</div></div>`;
-    if(m.conversas!=null) html+=`<div class="metric"><div class="metric-label">Conversas iniciadas</div><div class="metric-value">${fmt(m.conversas)}</div></div>`;
-    html+=`<div class="metric"><div class="metric-label">Investimento</div><div class="metric-value">${fmtR(m.investimento)}</div></div>`;
-    if(cpConv) html+=`<div class="metric"><div class="metric-label">Custo/conversa</div><div class="metric-value">${fmtR(cpConv)}</div></div>`;
-    if(cpSeg)  html+=`<div class="metric"><div class="metric-label">Custo/seguidor</div><div class="metric-value">${fmtR(cpSeg)}</div></div>`;
-    if(cpm)    html+=`<div class="metric"><div class="metric-label">CPM estimado</div><div class="metric-value">${fmtR(cpm)}</div></div>`;
-    html+=`</div></div>`;
+  if(!sem){
+    document.getElementById('content').innerHTML='<div class="empty">Sem dados para este período.</div>';
+    return;
   }
 
-  if(hasGoogle&&sem.google){
-    const g=sem.google;
-    const cpConvG=g.conversas>0?Math.round(g.investimento/g.conversas*100)/100:null;
-    html+=`<div class="card"><div class="card-title"><span class="platform-badge badge-google">Google Ads</span></div><div class="metric-grid">`;
-    if(g.obs) html+=`<div class="warn-box">⚠️ ${g.obs}</div>`;
-    html+=`<div class="metric"><div class="metric-label">Cliques</div><div class="metric-value">${fmt(g.cliques)}</div></div>`;
-    if(g.cpc!=null) html+=`<div class="metric"><div class="metric-label">CPC médio</div><div class="metric-value">${fmtR(g.cpc)}</div></div>`;
-    if(g.conversas!=null) html+=`<div class="metric"><div class="metric-label">Conversas iniciadas</div><div class="metric-value">${fmt(g.conversas)}</div></div>`;
-    html+=`<div class="metric"><div class="metric-label">Investimento</div><div class="metric-value">${fmtR(g.investimento)}</div></div>`;
-    if(cpConvG) html+=`<div class="metric"><div class="metric-label">Custo/conversa</div><div class="metric-value">${fmtR(cpConvG)}</div></div>`;
-    html+=`</div></div>`;
+  const hasMeta = c.plataformas.includes('meta');
+  const hasGoogle = c.plataformas.includes('google');
+  const totalOrc = c.orcamento.meta + c.orcamento.google;
+  const investMeta = sem.meta ? sem.meta.investimento : 0;
+  const investGoogle = sem.google ? sem.google.investimento : 0;
+  const totalInvest = investMeta + investGoogle;
+  const pct = totalOrc > 0 ? Math.min(Math.round((totalInvest/totalOrc)*100), 100) : 0;
+
+  let output = '';
+
+  // Investimento
+  output += '<div class="card"><div class="card-title">Investimento</div>';
+  output += '<div class="kpi-row">';
+  output += '<div class="kpi"><div class="kpi-l">Orçamento mensal</div><div class="kpi-v">' + fmtR(totalOrc) + '</div></div>';
+  output += '<div class="kpi"><div class="kpi-l">Investido no período</div><div class="kpi-v">' + fmtR(totalInvest) + '</div></div>';
+  output += '</div>';
+  output += '<div class="budget-bar-wrap"><div class="budget-bar" style="width:' + pct + '%"></div></div>';
+  output += '</div>';
+
+  // Meta Ads
+  if(hasMeta && sem.meta){
+    const m = sem.meta;
+    const cpConv = m.conversas > 0 ? Math.round(m.investimento/m.conversas*100)/100 : null;
+    const cpSeg  = m.seguidores > 0 ? Math.round(m.investimento/m.seguidores*100)/100 : null;
+    const cpm    = m.alcance > 0 ? Math.round((m.investimento/m.alcance)*1000*100)/100 : null;
+    output += '<div class="card"><div class="card-title"><span class="platform-badge badge-meta">Meta Ads</span></div><div class="metric-grid">';
+    if(m.obs) output += '<div class="warn-box">⚠️ ' + m.obs + '</div>';
+    output += '<div class="metric"><div class="metric-label">Alcance</div><div class="metric-value">' + fmt(m.alcance) + '</div></div>';
+    if(m.visitas != null) output += '<div class="metric"><div class="metric-label">Visitas ao perfil</div><div class="metric-value">' + fmt(m.visitas) + '</div></div>';
+    if(m.seguidores != null) output += '<div class="metric"><div class="metric-label">Novos seguidores</div><div class="metric-value">+' + fmt(m.seguidores) + '</div></div>';
+    if(m.conversas != null) output += '<div class="metric"><div class="metric-label">Conversas iniciadas</div><div class="metric-value">' + fmt(m.conversas) + '</div></div>';
+    output += '<div class="metric"><div class="metric-label">Investimento</div><div class="metric-value">' + fmtR(m.investimento) + '</div></div>';
+    if(cpConv) output += '<div class="metric"><div class="metric-label">Custo/conversa</div><div class="metric-value">' + fmtR(cpConv) + '</div></div>';
+    if(cpSeg)  output += '<div class="metric"><div class="metric-label">Custo/seguidor</div><div class="metric-value">' + fmtR(cpSeg) + '</div></div>';
+    if(cpm)    output += '<div class="metric"><div class="metric-label">CPM estimado</div><div class="metric-value">' + fmtR(cpm) + '</div></div>';
+    output += '</div></div>';
   }
 
-  // Análise
-  const notaKey=`nota__${clientName}__${activeWeek}`;
-  const nota=await getStorage(notaKey);
-  if(nota){
-    html+=`<div class="card"><div class="card-title">Análise da semana</div><div class="analise-box">${nota}</div></div>`;
+  // Google Ads
+  if(hasGoogle && sem.google){
+    const g = sem.google;
+    const cpConvG = g.conversas > 0 ? Math.round(g.investimento/g.conversas*100)/100 : null;
+    output += '<div class="card"><div class="card-title"><span class="platform-badge badge-google">Google Ads</span></div><div class="metric-grid">';
+    if(g.obs) output += '<div class="warn-box">⚠️ ' + g.obs + '</div>';
+    output += '<div class="metric"><div class="metric-label">Cliques</div><div class="metric-value">' + fmt(g.cliques) + '</div></div>';
+    if(g.cpc != null) output += '<div class="metric"><div class="metric-label">CPC médio</div><div class="metric-value">' + fmtR(g.cpc) + '</div></div>';
+    if(g.conversas != null) output += '<div class="metric"><div class="metric-label">Conversas iniciadas</div><div class="metric-value">' + fmt(g.conversas) + '</div></div>';
+    output += '<div class="metric"><div class="metric-label">Investimento</div><div class="metric-value">' + fmtR(g.investimento) + '</div></div>';
+    if(cpConvG) output += '<div class="metric"><div class="metric-label">Custo/conversa</div><div class="metric-value">' + fmtR(cpConvG) + '</div></div>';
+    output += '</div></div>';
   }
 
-  // Ações de otimização
-  const otimKey=`otim__${clientName}__${activeWeek}`;
-  const otims=await getStorage(otimKey);
-  if(otims&&otims.length>0){
-    const colors={done:'#1D9E75',pending:'#EF9F27',todo:'#B4B2A9'};
-    const labels={done:'Concluído',pending:'Em andamento',todo:'Pendente'};
-    html+=`<div class="card"><div class="card-title">Ações de otimização</div>
-      <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div>Concluído</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#EF9F27"></div>Em andamento</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#B4B2A9"></div>Pendente</div>
-      </div>`;
-    otims.forEach(a=>{
-      const status=a.status||'todo';
-      html+=`<div class="action-item">
-        <div class="dot d-${status}" style="background:${colors[status]}"></div>
-        <div class="action-text">${a.text||''}${a.tag?`<div style="font-size:11px;color:var(--text2);margin-top:2px">${a.tag}</div>`:''}</div>
-      </div>`;
-    });
-    html+=`</div>`;
-  }
+  // Análise (from Supabase)
+  try {
+    const nota = await getStorage('nota__' + clientName + '__' + activeWeek);
+    if(nota && nota.trim()){
+      output += '<div class="card"><div class="card-title">Análise da semana</div><div class="analise-box">' + nota + '</div></div>';
+    }
+  } catch(e){}
 
-  document.getElementById('content').innerHTML=html;
-  }catch(e){
-    console.error('Render error:',e);
-    document.getElementById('content').innerHTML='<div class="empty">Erro ao carregar. Tente recarregar a página.</div>';
-  }
+  // Ações de otimização (from Supabase)
+  try {
+    const otims = await getStorage('otim__' + clientName + '__' + activeWeek);
+    if(otims && otims.length > 0){
+      const colors = {done:'#1D9E75', pending:'#EF9F27', todo:'#B4B2A9'};
+      output += '<div class="card"><div class="card-title">Ações de otimização</div>';
+      output += '<div class="legend">';
+      output += '<div class="legend-item"><div class="legend-dot" style="background:#1D9E75"></div>Concluído</div>';
+      output += '<div class="legend-item"><div class="legend-dot" style="background:#EF9F27"></div>Em andamento</div>';
+      output += '<div class="legend-item"><div class="legend-dot" style="background:#B4B2A9"></div>Pendente</div>';
+      output += '</div>';
+      otims.forEach(function(a){
+        const status = a.status || 'todo';
+        output += '<div class="action-item">';
+        output += '<div class="dot d-' + status + '" style="background:' + colors[status] + '"></div>';
+        output += '<div class="action-text">' + (a.text||'');
+        if(a.tag) output += '<div style="font-size:11px;color:var(--text2);margin-top:2px">' + a.tag + '</div>';
+        output += '</div></div>';
+      });
+      output += '</div>';
+    }
+  } catch(e){}
+
+  document.getElementById('content').innerHTML = output;
 }
+
 
 function renderMonthTotal(){
   const c=CLIENTS[clientName];
