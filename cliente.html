@@ -253,23 +253,35 @@ function renderNav(){
     document.getElementById('week-tabs').innerHTML='';
     return;
   }
-  const weeks=getWeeksForMonth(clientName,activeMonth);
+  const allKeys=getWeeksForMonth(clientName,activeMonth);
+  const weekKeys=allKeys.filter(k=>k.includes('-s'));
+  const monthlyKey=allKeys.find(k=>!k.includes('-s'));
   let wHtml='';
-  weeks.forEach((k,i)=>{
-    const isMonthly=!k.includes('-s');
-    const label=isMonthly?'Total do mês':`Semana ${i+1}`;
-    const sub=isMonthly?'':(WEEK_LABELS[k]||'').replace(/Sem \d+ · /,'');
+  // Render weekly tabs with correct sequential numbering
+  weekKeys.forEach((k,i)=>{
+    const sub=(WEEK_LABELS[k]||'').replace(/Sem \d+ · /,'');
     const active=activeWeek===k?'active':'';
-    wHtml+=`<div class="wtab ${active}" onclick="selectWeek('${k}')">${label}${sub?`<span style="font-size:10px;opacity:.65;display:block;margin-top:1px">${sub}</span>`:''}</div>`;
+    wHtml+=`<div class="wtab ${active}" onclick="selectWeek('${k}')">Semana ${i+1}${sub?`<span style="font-size:10px;opacity:.65;display:block;margin-top:1px">${sub}</span>`:''}</div>`;
   });
+  // Render monthly total tab separately
+  if(monthlyKey){
+    const active=activeWeek===monthlyKey?'active':'';
+    wHtml+=`<div class="wtab ${active}" onclick="selectWeek('${monthlyKey}')">Total do mês</div>`;
+  } else if(weekKeys.length>1){
+    // Aggregate total option
+    const active=activeView==='month'?'active':'';
+    wHtml+=`<div class="wtab ${active}" onclick="selectView('month')">Total do mês</div>`;
+  }
   document.getElementById('week-tabs').innerHTML=wHtml;
 }
 
 function selectMonth(mk){
   activeView='week';
   activeMonth=mk;
-  const weeks=getWeeksForMonth(clientName,mk);
-  activeWeek=weeks[weeks.length-1];
+  const allKeys=getWeeksForMonth(clientName,mk);
+  const weekKeys=allKeys.filter(k=>k.includes('-s'));
+  // Default to last weekly tab (not the monthly aggregate)
+  activeWeek=weekKeys.length>0?weekKeys[weekKeys.length-1]:allKeys[allKeys.length-1];
   render();
 }
 function selectWeek(k){activeView='week';activeWeek=k;render();}
@@ -295,8 +307,10 @@ function toggleCompareWeek(k){
 
 // ── Render Content ──
 async function render(){
+  try{
   renderNav();
   if(activeView==='compare'){renderCompare();return;}
+  if(activeView==='month'){renderMonthTotal();return;}
   const c=CLIENTS[clientName];
   const sem=c.semanas[activeWeek];
   if(!sem){document.getElementById('content').innerHTML='<div class="empty">Sem dados para este período.</div>';return;}
@@ -377,6 +391,58 @@ async function render(){
     html+=`</div>`;
   }
 
+  document.getElementById('content').innerHTML=html;
+  }catch(e){
+    console.error('Render error:',e);
+    document.getElementById('content').innerHTML='<div class="empty">Erro ao carregar. Tente recarregar a página.</div>';
+  }
+}
+
+function renderMonthTotal(){
+  const c=CLIENTS[clientName];
+  const weeks=getWeeksForMonth(clientName,activeMonth).filter(k=>k.includes('-s'));
+  if(!weeks.length){document.getElementById('content').innerHTML='<div class="empty">Sem dados neste mês.</div>';return;}
+  const hasMeta=c.plataformas.includes('meta');
+  const hasGoogle=c.plataformas.includes('google');
+  let tMA=0,tMAlc=0,tMConv=0,tMSeg=0,tMVis=0,tGA=0,tGCl=0,tGConv=0;
+  weeks.forEach(k=>{
+    const s=c.semanas[k];
+    if(s.meta){tMA+=s.meta.investimento||0;tMAlc+=s.meta.alcance||0;tMConv+=s.meta.conversas||0;tMSeg+=s.meta.seguidores||0;tMVis+=s.meta.visitas||0;}
+    if(s.google){tGA+=s.google.investimento||0;tGCl+=s.google.cliques||0;tGConv+=s.google.conversas||0;}
+  });
+  const total=tMA+tGA;
+  const orc=c.orcamento.meta+c.orcamento.google;
+  const pct=orc>0?Math.min(Math.round(total/orc*100),100):0;
+  let html=`<div class="card"><div class="card-title">Total · ${MONTHS[activeMonth]?.label||activeMonth}</div>
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-l">Orçamento mensal</div><div class="kpi-v">${fmtR(orc)}</div></div>
+      <div class="kpi"><div class="kpi-l">Total investido</div><div class="kpi-v">${fmtR(total)}</div></div>
+      <div class="kpi"><div class="kpi-l">% utilizado</div><div class="kpi-v">${pct}%</div></div>
+    </div>
+    <div class="budget-bar-wrap"><div class="budget-bar" style="width:${pct}%"></div></div>
+  </div>`;
+  if(hasMeta){
+    const cpConv=tMConv>0?Math.round(tMA/tMConv*100)/100:null;
+    const cpSeg=tMSeg>0?Math.round(tMA/tMSeg*100)/100:null;
+    html+=`<div class="card"><div class="card-title"><span class="platform-badge badge-meta">Meta Ads</span></div><div class="metric-grid">
+      <div class="metric"><div class="metric-label">Alcance total</div><div class="metric-value">${fmt(tMAlc)}</div></div>
+      ${tMVis>0?`<div class="metric"><div class="metric-label">Visitas ao perfil</div><div class="metric-value">${fmt(tMVis)}</div></div>`:''}
+      ${tMSeg>0?`<div class="metric"><div class="metric-label">Novos seguidores</div><div class="metric-value">+${fmt(tMSeg)}</div></div>`:''}
+      ${tMConv>0?`<div class="metric"><div class="metric-label">Conversas iniciadas</div><div class="metric-value">${fmt(tMConv)}</div></div>`:''}
+      <div class="metric"><div class="metric-label">Investimento</div><div class="metric-value">${fmtR(tMA)}</div></div>
+      ${cpConv?`<div class="metric"><div class="metric-label">Custo/conversa</div><div class="metric-value">${fmtR(cpConv)}</div></div>`:''}
+      ${cpSeg?`<div class="metric"><div class="metric-label">Custo/seguidor</div><div class="metric-value">${fmtR(cpSeg)}</div></div>`:''}
+    </div></div>`;
+  }
+  if(hasGoogle&&tGA>0){
+    const cpConvG=tGConv>0?Math.round(tGA/tGConv*100)/100:null;
+    html+=`<div class="card"><div class="card-title"><span class="platform-badge badge-google">Google Ads</span></div><div class="metric-grid">
+      <div class="metric"><div class="metric-label">Cliques totais</div><div class="metric-value">${fmt(tGCl)}</div></div>
+      <div class="metric"><div class="metric-label">Conversas iniciadas</div><div class="metric-value">${fmt(tGConv)}</div></div>
+      <div class="metric"><div class="metric-label">Investimento</div><div class="metric-value">${fmtR(tGA)}</div></div>
+      ${cpConvG?`<div class="metric"><div class="metric-label">Custo/conversa</div><div class="metric-value">${fmtR(cpConvG)}</div></div>`:''}
+    </div></div>`;
+  }
   document.getElementById('content').innerHTML=html;
 }
 
@@ -560,8 +626,9 @@ function renderCompare(){
 
   const months=getMonthsForClient(clientName);
   activeMonth=months[months.length-1];
-  const weeks=getWeeksForMonth(clientName,activeMonth);
-  activeWeek=weeks[weeks.length-1];
+  const allInitKeys=getWeeksForMonth(clientName,activeMonth);
+  const initWeekKeys=allInitKeys.filter(k=>k.includes('-s'));
+  activeWeek=initWeekKeys.length>0?initWeekKeys[initWeekKeys.length-1]:allInitKeys[allInitKeys.length-1];
   compareMonths=months.slice(-2);
   compareWeeks=months.map(mk=>getWeeksForMonth(clientName,mk).find(k=>k.includes('-s'))).filter(Boolean).slice(0,2);
 
