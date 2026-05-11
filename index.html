@@ -47,11 +47,11 @@
   .topbar h1 { font-size: 22px; font-weight: 700; color: var(--dark); }
   .topbar p { font-size: 13px; color: var(--text2); margin-top: 3px; }
   .badge { background: var(--orange-light); color: #B84C10; font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 20px; border: 0.5px solid var(--orange-mid); }
+  .month-tabs { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
   .week-tabs { display: flex; gap: 6px; margin-bottom: 1.5rem; flex-wrap: wrap; }
-  .wtab { padding: 6px 16px; border-radius: 20px; font-size: 13px; cursor: pointer; border: 0.5px solid var(--border2); background: var(--bg); color: var(--text2); transition: all .15s; }
+  .wtab { padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; border: 0.5px solid var(--border2); background: var(--bg); color: var(--text2); transition: all .15s; line-height: 1.3; text-align: center; }
   .wtab:hover { background: var(--bg2); }
   .wtab.active { background: var(--orange-light); color: var(--orange); border-color: var(--orange-mid); font-weight: 600; }
-  .wtab.compare { }
   .wtab.compare.active { background: var(--dark-light); color: var(--dark); border-color: var(--dark-mid); }
   .obj-bar { background: var(--dark-light); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 1.25rem; font-size: 13px; color: var(--text2); line-height: 1.6; border-left: 3px solid var(--orange); }
   .platform-badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; margin-right: 6px; }
@@ -80,6 +80,12 @@
   .trend-up { color: var(--teal); font-size: 11px; }
   .trend-down { color: #993C1D; font-size: 11px; }
   .variation-bar { background: var(--dark-light); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; margin-bottom: .75rem; line-height: 1.8; border-left: 3px solid var(--dark); }
+  .mode-btn { padding: 8px 18px; border-radius: 20px; font-size: 13px; cursor: pointer; border: 0.5px solid var(--border2); background: var(--bg); color: var(--text2); transition: all .15s; }
+  .mode-btn:hover { background: var(--bg2); }
+  .mode-active { background: var(--dark-light) !important; color: var(--dark) !important; border-color: var(--dark-mid) !important; font-weight: 600; }
+  .sel-chip { padding: 7px 14px; border-radius: var(--radius); font-size: 13px; cursor: pointer; border: 0.5px solid var(--border2); background: var(--bg); color: var(--text2); transition: all .15s; text-align:center; line-height:1.3; }
+  .sel-chip:hover { background: var(--bg2); }
+  .sel-active { background: var(--orange-light) !important; color: var(--orange) !important; border-color: var(--orange-mid) !important; font-weight: 600; }
   textarea { width: 100%; border: 0.5px solid var(--border); border-radius: var(--radius); padding: 10px 12px; font-size: 14px; font-family: inherit; color: var(--text); background: var(--bg); resize: vertical; min-height: 80px; line-height: 1.6; }
   textarea:focus { outline: none; border-color: var(--purple); }
   .action-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 0.5px solid var(--border); }
@@ -128,8 +134,9 @@
       <h1 id="main-title">Carregando...</h1>
       <p id="main-sub"></p>
     </div>
-    <span class="badge">Abr 2025 · Abr 2026</span>
+    <span class="badge">Abr 2026 – Mai 2026</span>
   </div>
+  <div class="month-tabs" id="month-tabs"></div>
   <div class="week-tabs" id="week-tabs"></div>
   <div id="content"></div>
 </main>
@@ -143,9 +150,9 @@ const CLIENTS = {
     orcamento: {meta: 342, google: 0},
     plataformas: ['meta'],
     semanas: {
-      'abr25-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:13359, visitas:431, seguidores:44, investimento:72.17}},
-      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:5208, visitas:189, seguidores:40, investimento:76.88}},
-      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:4751, visitas:113, seguidores:26, investimento:44.85}},
+      'abr26-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:13359, visitas:431, seguidores:44, investimento:72.17}},
+      'abr26-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:5208, visitas:189, seguidores:40, investimento:76.88}},
+      'abr26-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:4751, visitas:113, seguidores:26, investimento:44.85}},
       'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:26817, visitas:866, seguidores:126, investimento:241.75}},
     }
   },
@@ -154,10 +161,11 @@ const CLIENTS = {
     orcamento: {meta: 1200, google: 0},
     plataformas: ['meta'],
     semanas: {
-      'abr25-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:61414, visitas:330, seguidores:29, investimento:272.54}},
-      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:44019, visitas:357, seguidores:59, investimento:240.72}},
-      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:31583, visitas:231, seguidores:65, investimento:165.69}},
+      'abr26-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:61414, visitas:330, seguidores:29, investimento:272.54}},
+      'abr26-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:44019, visitas:357, seguidores:59, investimento:240.72}},
+      'abr26-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:31583, visitas:231, seguidores:65, investimento:165.69}},
       'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:130518, visitas:1325, seguidores:225, investimento:987.25}},
+      'mai26-s1': {periodo:'01/05 – 08/05/2026', meta:{alcance:35400, visitas:419, seguidores:95, investimento:285.26}},
     }
   },
   'Dr. Leonardo': {
@@ -165,10 +173,11 @@ const CLIENTS = {
     orcamento: {meta: 1200, google: 1200},
     plataformas: ['meta','google'],
     semanas: {
-      'abr25-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:31020, conversas:17, investimento:316.93}, google:{cliques:26, cpc:5.57, conversas:6, investimento:145}},
-      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:31020, conversas:22, investimento:304.60}, google:{cliques:8, cpc:8.43, conversas:4, investimento:67.44}},
-      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:20268, conversas:17, investimento:200.08}, google:{cliques:45, cpc:5.50, conversas:5, investimento:247}},
+      'abr26-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:31020, conversas:17, investimento:316.93}, google:{cliques:26, cpc:5.57, conversas:6, investimento:145}},
+      'abr26-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:31020, conversas:22, investimento:304.60}, google:{cliques:8, cpc:8.43, conversas:4, investimento:67.44}},
+      'abr26-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:20268, conversas:17, investimento:200.08}, google:{cliques:45, cpc:5.50, conversas:5, investimento:247}},
       'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:100562, conversas:79, investimento:1167.29}, google:{cliques:129, cpc:5.68, conversas:16, investimento:732.88}},
+      'mai26-s1': {periodo:'01/05 – 08/05/2026', meta:{alcance:21236, conversas:19, investimento:253.98}, google:{cliques:41, conversas:9, investimento:232.88}},
     }
   },
   'Allura': {
@@ -176,10 +185,11 @@ const CLIENTS = {
     orcamento: {meta: 1300, google: 0},
     plataformas: ['meta'],
     semanas: {
-      'abr25-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:13986, conversas:3, investimento:227.38}},
-      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:6006, conversas:7, investimento:236.64}},
-      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:5795, conversas:11, investimento:149.44}},
+      'abr26-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:13986, conversas:3, investimento:227.38}},
+      'abr26-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:6006, conversas:7, investimento:236.64}},
+      'abr26-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:5795, conversas:11, investimento:149.44}},
       'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:51426, conversas:44, investimento:961.44}},
+      'mai26-s1': {periodo:'01/05 – 08/05/2026', meta:{alcance:10984, conversas:null, investimento:243.36, obs:'Semana de ajuste de estratégia — resultados de conversas voltam na próxima semana.'}},
     }
   },
   'Health Lounge': {
@@ -187,10 +197,11 @@ const CLIENTS = {
     orcamento: {meta: 1000, google: 600},
     plataformas: ['meta','google'],
     semanas: {
-      'abr25-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:20061, conversas:5, investimento:209.79}, google:{cliques:51, cpc:4.05, impressoes:143614, conversas:0, investimento:206.57}},
-      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:25413, conversas:7, investimento:86.90}, google:{cliques:26, cpc:3.47, conversas:3, investimento:90.22}},
-      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:1718, conversas:9, investimento:133.56}, google:{cliques:18, cpc:5.81, conversas:3, investimento:105}},
+      'abr26-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:20061, conversas:5, investimento:209.79}, google:{cliques:51, cpc:4.05, impressoes:143614, conversas:0, investimento:206.57}},
+      'abr26-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:25413, conversas:7, investimento:86.90}, google:{cliques:26, cpc:3.47, conversas:3, investimento:90.22}},
+      'abr26-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:1718, conversas:9, investimento:133.56}, google:{cliques:18, cpc:5.81, conversas:3, investimento:105}},
       'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:15347, conversas:28, investimento:703.87}, google:{cliques:385, cpc:1.51, conversas:11, investimento:583.10}},
+      'mai26-s1': {periodo:'01/05 – 08/05/2026', meta:{alcance:2679, conversas:14, investimento:271.34}, google:{cliques:42, conversas:9, investimento:171.76}},
     }
   },
   'Aliv': {
@@ -198,10 +209,11 @@ const CLIENTS = {
     orcamento: {meta: 1000, google: 500},
     plataformas: ['meta','google'],
     semanas: {
-      'abr25-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:4739, conversas:25, investimento:362.25}},
-      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:937, conversas:3, investimento:64}},
-      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:1147, conversas:4, investimento:134.59}},
+      'abr26-s1': {periodo:'03/04 – 10/04/2025', meta:{alcance:4739, conversas:25, investimento:362.25}},
+      'abr26-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:937, conversas:3, investimento:64}},
+      'abr26-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:1147, conversas:4, investimento:134.59}},
       'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:1917, conversas:14, investimento:355.90}, google:{cliques:101, cpc:3.22, conversas:11, investimento:324.98}},
+      'mai26-s1': {periodo:'01/05 – 08/05/2026', meta:{alcance:1591, conversas:10, investimento:242.56}, google:{cliques:15, conversas:2, investimento:139.38}},
     }
   },
   'Dra. Fernanda': {
@@ -209,16 +221,30 @@ const CLIENTS = {
     orcamento: {meta: 600, google: 0},
     plataformas: ['meta'],
     semanas: {
-      'abr25-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:2295, conversas:14, investimento:62.62}},
-      'abr25-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:5109, conversas:19, investimento:103.53}},
+      'abr26-s2': {periodo:'13/04 – 20/04/2025', meta:{alcance:2295, conversas:14, investimento:62.62}},
+      'abr26-s3': {periodo:'20/04 – 24/04/2025', meta:{alcance:5109, conversas:19, investimento:103.53}},
       'abr26':    {periodo:'01/04 – 30/04/2026', meta:{alcance:21713, conversas:41, visitas:972, seguidores:68, investimento:346.86}},
+      'mai26-s1': {periodo:'01/05 – 08/05/2026', meta:{alcance:5620, conversas:12, visitas:119, seguidores:18, investimento:142.45}},
+    }
+  },
+  'Dr. Breno Borges': {
+    objetivo: 'Aumentar leads no WhatsApp para fechar consultas. Meta: engajamento WhatsApp. Google: Rede de Pesquisa (em aprendizado).',
+    orcamento: {meta: 600, google: 500},
+    plataformas: ['meta','google'],
+    semanas: {
+      'mai26-s1': {periodo:'01/05 – 08/05/2026', meta:{alcance:3377, conversas:10, investimento:143.95}, google:{cliques:9, conversas:0, investimento:106.69, obs:'Campanha em fase de aprendizado — resultados crescem nas próximas semanas.'}},
     }
   },
 };
 
-const WEEK_LABELS = {'abr25-s1':'Sem 1 · 03–10/04/25', 'abr25-s2':'Sem 2 · 13–20/04/25', 'abr25-s3':'Sem 3 · 20–24/04/25', 'abr26':'Abril 2026 · Mensal'};
+const WEEK_LABELS = {'abr26-s1':'Sem 1 · 03–10/04', 'abr26-s2':'Sem 2 · 13–20/04', 'abr26-s3':'Sem 3 · 20–24/04', 'abr26':'Mensal', 'mai26-s1':'Sem 1 · 01–08/05'};
 let activeClient = 'Fabiana';
-let activeWeek = 'abr26';
+let activeMonth = 'abr26';
+let activeWeek = 'mai26-s1';
+let activeView = 'week'; // 'week' | 'month' | 'compare'
+let compareMode = 'months'; // 'months' | 'weeks'
+let compareMonths = ['abr26', 'mai26'];
+let compareWeeks = [];
 
 const fmt = n => n != null ? n.toLocaleString('pt-BR') : '—';
 const fmtR = n => n != null ? 'R$ ' + (Math.round(n * 100) / 100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
@@ -282,19 +308,93 @@ function renderSidebar() {
 
 function selectClient(name) {
   activeClient = name;
-  const sems = Object.keys(CLIENTS[name].semanas);
-  if (!sems.includes(activeWeek)) activeWeek = sems[sems.length - 1];
+  const months = getMonthsForClient(name);
+  activeMonth = months[months.length - 1];
+  const weeks = getWeeksForMonth(name, activeMonth);
+  activeWeek = weeks[weeks.length - 1];
+  activeView = 'week';
   renderAll();
 }
 
-function renderWeekTabs() {
-  const c = CLIENTS[activeClient];
-  const sems = Object.keys(c.semanas);
-  let html = sems.map(k =>
-    `<div class="wtab ${k === activeWeek ? 'active' : ''}" onclick="selectWeek('${k}')">${WEEK_LABELS[k]}</div>`
-  ).join('');
-  html += `<div class="wtab compare ${activeWeek === 'compare' ? 'active' : ''}" onclick="selectWeek('compare')">Comparativo</div>`;
-  document.getElementById('week-tabs').innerHTML = html;
+// Estrutura de meses
+const MONTHS = {
+  'abr26': {label:'Abril 2026', short:'Abr/26'},
+  'mai26': {label:'Maio 2026',  short:'Mai/26'},
+};
+
+function getMonthsForClient(client) {
+  const sems = Object.keys(CLIENTS[client].semanas);
+  const months = [];
+  Object.keys(MONTHS).forEach(mk => {
+    if (sems.some(k => k.startsWith(mk))) months.push(mk);
+  });
+  return months;
+}
+
+function getWeeksForMonth(client, month) {
+  return Object.keys(CLIENTS[client].semanas).filter(k => k.startsWith(month));
+}
+
+function renderNav() {
+  const months = getMonthsForClient(activeClient);
+
+  // Linha 1: abas de meses + comparativo
+  let monthHtml = '';
+  months.forEach(mk => {
+    const active = (activeView !== 'compare' && activeMonth === mk) ? 'active' : '';
+    monthHtml += `<div class="wtab ${active}" onclick="selectMonth('${mk}')">${MONTHS[mk].label}</div>`;
+  });
+  monthHtml += `<div class="wtab compare ${activeView === 'compare' ? 'active' : ''}" onclick="selectView('compare')">⇄ Comparativo</div>`;
+  document.getElementById('month-tabs').innerHTML = monthHtml;
+
+  // Linha 2: sub-abas de semanas (só se não for comparativo)
+  if (activeView === 'compare') {
+    document.getElementById('week-tabs').innerHTML = '';
+    return;
+  }
+
+  const weeks = getWeeksForMonth(activeClient, activeMonth);
+  let weekHtml = '';
+
+  // Botão de semanas individuais
+  weeks.forEach((k, i) => {
+    // Se for chave mensal (abr26 sem sufixo -sX), mostra como "Total do mês"
+    const isMonthly = !k.includes('-s');
+    const label = isMonthly ? 'Total do mês' : `Semana ${i + 1}`;
+    const sub = isMonthly ? '' : WEEK_LABELS[k].replace(/Sem \d+ · /, '');
+    const active = (activeView === 'week' && activeWeek === k) ? 'active' : '';
+    weekHtml += `<div class="wtab ${active}" onclick="selectWeek('${k}')">
+      ${label}${sub ? `<span style="font-size:10px;opacity:.7;display:block;margin-top:1px">${sub}</span>` : ''}
+    </div>`;
+  });
+
+  // Botão resultado total do mês (soma das semanas se não tiver período mensal)
+  const hasMonthly = weeks.some(k => !k.includes('-s'));
+  if (!hasMonthly && weeks.length > 1) {
+    const active = activeView === 'month' ? 'active' : '';
+    weekHtml += `<div class="wtab ${active}" onclick="selectView('month')">Resultado do mês</div>`;
+  }
+
+  document.getElementById('week-tabs').innerHTML = weekHtml;
+}
+
+function selectMonth(mk) {
+  activeMonth = mk;
+  activeView = 'week';
+  const weeks = getWeeksForMonth(activeClient, mk);
+  activeWeek = weeks[weeks.length - 1]; // última semana do mês
+  renderAll();
+}
+
+function selectWeek(k) {
+  activeView = 'week';
+  activeWeek = k;
+  renderAll();
+}
+
+function selectView(view) {
+  activeView = view;
+  renderAll();
 }
 
 function selectWeek(k) { activeWeek = k; renderAll(); }
@@ -302,6 +402,10 @@ function selectWeek(k) { activeWeek = k; renderAll(); }
 function renderWeek() {
   const c = CLIENTS[activeClient];
   const sem = c.semanas[activeWeek];
+  if (!sem) {
+    document.getElementById('content').innerHTML = '<div class="obj-bar">Sem dados para este período.</div>';
+    return;
+  }
   const hasMeta = c.plataformas.includes('meta');
   const hasGoogle = c.plataformas.includes('google');
 
@@ -387,96 +491,316 @@ function renderWeek() {
   document.getElementById('content').innerHTML = html;
 }
 
-function renderCompare() {
+function renderMonthTotal() {
   const c = CLIENTS[activeClient];
-  const sems = Object.keys(c.semanas).sort();
+  const weeks = getWeeksForMonth(activeClient, activeMonth).filter(k => k.includes('-s'));
+  if (!weeks.length) { document.getElementById('content').innerHTML = '<div class="obj-bar">Nenhuma semana disponível neste mês.</div>'; return; }
+
+  const monthLabel = MONTHS[activeMonth]?.label || activeMonth;
+  let totalMetaInvest = 0, totalMetaAlcance = 0, totalMetaConversas = 0, totalMetaSeguidores = 0, totalMetaVisitas = 0;
+  let totalGoogleInvest = 0, totalGoogleCliques = 0, totalGoogleConversas = 0;
+  const hasMeta = c.plataformas.includes('meta');
   const hasGoogle = c.plataformas.includes('google');
 
-  let html = `<div class="obj-bar"><span class="platform-badge badge-obj">Objetivo</span>${c.objetivo}</div>`;
-
-  html += `<div class="card"><div class="card-title">Comparativo semanal — Meta Ads</div><div class="compare-grid">`;
-  sems.forEach(sk => {
-    const sem = c.semanas[sk];
-    const m = sem.meta;
-    if (!m) return;
-    const cpConv = m.conversas > 0 ? Math.round(m.investimento / m.conversas * 100) / 100 : null;
-    const cpSeg = m.seguidores > 0 ? Math.round(m.investimento / m.seguidores * 100) / 100 : null;
-    html += `<div class="compare-col"><h4>${WEEK_LABELS[sk]}</h4>
-      <div class="compare-row"><span class="compare-label">Alcance</span><span class="compare-val">${fmt(m.alcance)}</span></div>
-      ${m.visitas != null ? `<div class="compare-row"><span class="compare-label">Visitas perfil</span><span class="compare-val">${fmt(m.visitas)}</span></div>` : ''}
-      ${m.seguidores != null ? `<div class="compare-row"><span class="compare-label">Seguidores</span><span class="compare-val">${fmt(m.seguidores)}</span></div>` : ''}
-      ${m.conversas != null ? `<div class="compare-row"><span class="compare-label">Conversas</span><span class="compare-val">${fmt(m.conversas)}</span></div>` : ''}
-      <div class="compare-row"><span class="compare-label">Investido</span><span class="compare-val">${fmtR(m.investimento)}</span></div>
-      ${cpConv ? `<div class="compare-row"><span class="compare-label">Custo/conv.</span><span class="compare-val">${fmtR(cpConv)}</span></div>` : ''}
-      ${cpSeg ? `<div class="compare-row"><span class="compare-label">Custo/seg.</span><span class="compare-val">${fmtR(cpSeg)}</span></div>` : ''}
-    </div>`;
-  });
-  html += `</div>`;
-
-  if (sems.length >= 2) {
-    const ul = c.semanas[sems[sems.length-1]].meta;
-    const pe = c.semanas[sems[sems.length-2]].meta;
-    if (ul && pe) {
-      html += `<div class="variation-bar"><strong>Variação sem 2 → sem 3:</strong>&nbsp;
-        Alcance ${trend(ul.alcance, pe.alcance)}&nbsp;&nbsp;
-        ${ul.conversas != null ? 'Conversas ' + trend(ul.conversas, pe.conversas) + '&nbsp;&nbsp;' : ''}
-        ${ul.seguidores != null ? 'Seguidores ' + trend(ul.seguidores, pe.seguidores) + '&nbsp;&nbsp;' : ''}
-        Investimento ${trend(ul.investimento, pe.investimento, true)}
-      </div>`;
+  weeks.forEach(k => {
+    const sem = c.semanas[k];
+    if (sem.meta) {
+      totalMetaInvest += sem.meta.investimento || 0;
+      totalMetaAlcance += sem.meta.alcance || 0;
+      totalMetaConversas += sem.meta.conversas || 0;
+      totalMetaSeguidores += sem.meta.seguidores || 0;
+      totalMetaVisitas += sem.meta.visitas || 0;
     }
-  }
-  html += `</div>`;
+    if (sem.google) {
+      totalGoogleInvest += sem.google.investimento || 0;
+      totalGoogleCliques += sem.google.cliques || 0;
+      totalGoogleConversas += sem.google.conversas || 0;
+    }
+  });
 
-  if (hasGoogle) {
-    html += `<div class="card"><div class="card-title">Comparativo semanal — Google Ads</div><div class="compare-grid">`;
-    sems.forEach(sk => {
-      const g = c.semanas[sk].google;
-      if (!g) return;
-      const cpConvG = g.conversas > 0 ? Math.round(g.investimento / g.conversas * 100) / 100 : null;
-      html += `<div class="compare-col"><h4>${WEEK_LABELS[sk]}</h4>
-        <div class="compare-row"><span class="compare-label">Cliques</span><span class="compare-val">${fmt(g.cliques)}</span></div>
-        <div class="compare-row"><span class="compare-label">CPC</span><span class="compare-val">${fmtR(g.cpc)}</span></div>
-        ${g.conversas != null ? `<div class="compare-row"><span class="compare-label">Conversas</span><span class="compare-val">${fmt(g.conversas)}</span></div>` : ''}
-        <div class="compare-row"><span class="compare-label">Investido</span><span class="compare-val">${fmtR(g.investimento)}</span></div>
-        ${cpConvG ? `<div class="compare-row"><span class="compare-label">Custo/conv.</span><span class="compare-val">${fmtR(cpConvG)}</span></div>` : ''}
-      </div>`;
-    });
-    html += `</div></div>`;
-  }
+  const totalGeral = totalMetaInvest + totalGoogleInvest;
+  const orcTotal = c.orcamento.meta + c.orcamento.google;
+  const pct = orcTotal > 0 ? Math.min(Math.round((totalGeral / orcTotal) * 100), 100) : 0;
 
-  const totalMeta = sems.reduce((a, sk) => (c.semanas[sk].meta?.investimento || 0) + a, 0);
-  const totalGoogle = sems.reduce((a, sk) => (c.semanas[sk].google?.investimento || 0) + a, 0);
-  const totalOrc = c.orcamento.meta + c.orcamento.google;
-  const pct = totalOrc > 0 ? Math.min(Math.round((totalMeta + totalGoogle) / totalOrc * 100), 100) : 0;
+  let html = `<div class="obj-bar"><span class="platform-badge badge-obj">Resultado Total</span>${monthLabel} · ${weeks.length} semana${weeks.length > 1 ? 's' : ''} consolidada${weeks.length > 1 ? 's' : ''}</div>`;
 
-  html += `<div class="card"><div class="card-title">Resumo de investimento — Abril</div>
+  html += `<div class="card"><div class="card-title">Investimento do mês</div>
     <div class="kpi-row">
-      <div class="kpi"><div class="kpi-l">Total Meta</div><div class="kpi-v">${fmtR(Math.round(totalMeta*100)/100)}</div></div>
-      ${totalGoogle > 0 ? `<div class="kpi"><div class="kpi-l">Total Google</div><div class="kpi-v">${fmtR(Math.round(totalGoogle*100)/100)}</div></div>` : ''}
-      <div class="kpi"><div class="kpi-l">Total investido</div><div class="kpi-v">${fmtR(Math.round((totalMeta+totalGoogle)*100)/100)}</div></div>
-      <div class="kpi"><div class="kpi-l">Orçamento mensal</div><div class="kpi-v">${fmtR(totalOrc)}</div></div>
+      <div class="kpi"><div class="kpi-l">Orçamento mensal</div><div class="kpi-v">${fmtR(orcTotal)}</div></div>
+      <div class="kpi"><div class="kpi-l">Total investido</div><div class="kpi-v">${fmtR(totalGeral)}</div></div>
+      <div class="kpi"><div class="kpi-l">% utilizado</div><div class="kpi-v">${pct}%</div></div>
     </div>
     <div class="budget-bar-wrap"><div class="budget-bar" style="width:${pct}%"></div></div>
-    <div style="font-size:11px;color:var(--text2);margin-top:8px">${pct}% do orçamento mensal utilizado nas semanas registradas</div>
   </div>`;
+
+  if (hasMeta) {
+    const cpConv = totalMetaConversas > 0 ? Math.round(totalMetaInvest / totalMetaConversas * 100) / 100 : null;
+    const cpSeg = totalMetaSeguidores > 0 ? Math.round(totalMetaInvest / totalMetaSeguidores * 100) / 100 : null;
+    html += `<div class="card"><div class="card-title"><span class="platform-badge badge-meta">Meta Ads</span>· Total do mês</div><div class="metric-grid">
+      <div class="metric"><div class="metric-label">Alcance total</div><div class="metric-value">${fmt(totalMetaAlcance)}</div></div>
+      ${totalMetaVisitas > 0 ? `<div class="metric"><div class="metric-label">Visitas ao perfil</div><div class="metric-value">${fmt(totalMetaVisitas)}</div></div>` : ''}
+      ${totalMetaSeguidores > 0 ? `<div class="metric"><div class="metric-label">Novos seguidores</div><div class="metric-value">${fmt(totalMetaSeguidores)}</div></div>` : ''}
+      ${totalMetaConversas > 0 ? `<div class="metric"><div class="metric-label">Conversas iniciadas</div><div class="metric-value">${fmt(totalMetaConversas)}</div></div>` : ''}
+      <div class="metric"><div class="metric-label">Investimento</div><div class="metric-value">${fmtR(totalMetaInvest)}</div></div>
+      ${cpConv ? `<div class="metric"><div class="metric-label">Custo/conversa</div><div class="metric-value">${fmtR(cpConv)}</div></div>` : ''}
+      ${cpSeg ? `<div class="metric"><div class="metric-label">Custo/seguidor</div><div class="metric-value">${fmtR(cpSeg)}</div></div>` : ''}
+    </div></div>`;
+  }
+
+  if (hasGoogle && totalGoogleInvest > 0) {
+    const cpConvG = totalGoogleConversas > 0 ? Math.round(totalGoogleInvest / totalGoogleConversas * 100) / 100 : null;
+    html += `<div class="card"><div class="card-title"><span class="platform-badge badge-google">Google Ads</span>· Total do mês</div><div class="metric-grid">
+      <div class="metric"><div class="metric-label">Cliques totais</div><div class="metric-value">${fmt(totalGoogleCliques)}</div></div>
+      <div class="metric"><div class="metric-label">Conversas iniciadas</div><div class="metric-value">${fmt(totalGoogleConversas)}</div></div>
+      <div class="metric"><div class="metric-label">Investimento</div><div class="metric-value">${fmtR(totalGoogleInvest)}</div></div>
+      ${cpConvG ? `<div class="metric"><div class="metric-label">Custo/conversa</div><div class="metric-value">${fmtR(cpConvG)}</div></div>` : ''}
+    </div></div>`;
+  }
 
   document.getElementById('content').innerHTML = html;
 }
 
-async function saveData() {
-  const btn = document.getElementById('save-btn');
-  if (btn) { btn.textContent = 'Salvando...'; btn.disabled = true; }
-  try {
-    const ta = document.getElementById('nota-ta');
-    if (ta) await setStorage(`nota__${activeClient}__${activeWeek}`, ta.value);
-    if (btn) { btn.textContent = 'Salvo!'; btn.classList.add('saved'); btn.disabled = false; setTimeout(() => { btn.textContent = 'Salvar semana'; btn.classList.remove('saved'); }, 2000); }
-    const toast = document.getElementById('toast');
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2500);
-  } catch(e) {
-    if (btn) { btn.textContent = 'Erro ao salvar'; btn.disabled = false; }
+function renderCompare() {
+  const c = CLIENTS[activeClient];
+  const allMonths = getMonthsForClient(activeClient);
+  const hasGoogle = c.plataformas.includes('google');
+  const hasMeta = c.plataformas.includes('meta');
+
+  // ── Cabeçalho com seletor de modo ──
+  let html = `
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-title">Tipo de comparação</div>
+    <div style="display:flex;gap:8px;margin-bottom:0">
+      <div onclick="setCompareMode('months')" class="mode-btn ${compareMode==='months'?'mode-active':''}">
+        📅 Meses completos
+      </div>
+      <div onclick="setCompareMode('weeks')" class="mode-btn ${compareMode==='weeks'?'mode-active':''}">
+        📆 Semanas específicas
+      </div>
+    </div>
+  </div>`;
+
+  // ── MODO MESES ──
+  if (compareMode === 'months') {
+    html += `<div class="card" style="margin-bottom:1.25rem">
+      <div class="card-title">Selecione os meses</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">`;
+    allMonths.forEach(mk => {
+      const sel = compareMonths.includes(mk);
+      html += `<div onclick="toggleCompareMonth('${mk}')" class="sel-chip ${sel?'sel-active':''}">
+        ${MONTHS[mk]?.label||mk}
+      </div>`;
+    });
+    html += `</div></div>`;
+
+    const selected = compareMonths.filter(mk => allMonths.includes(mk));
+    if (selected.length < 2) {
+      html += `<div class="obj-bar">Selecione pelo menos 2 meses para comparar.</div>`;
+      document.getElementById('content').innerHTML = html;
+      return;
+    }
+
+    // Agrega dados por mês
+    function getMonthAgg(mk) {
+      const weeks = getWeeksForMonth(activeClient, mk);
+      const monthlyKey = weeks.find(k => !k.includes('-s'));
+      if (monthlyKey) return c.semanas[monthlyKey];
+      let meta = null, google = null;
+      weeks.forEach(k => {
+        const s = c.semanas[k];
+        if (s.meta) {
+          if (!meta) meta = {alcance:0,conversas:0,seguidores:0,visitas:0,investimento:0};
+          meta.alcance     += s.meta.alcance||0;
+          meta.conversas   += s.meta.conversas||0;
+          meta.seguidores  += s.meta.seguidores||0;
+          meta.visitas     += s.meta.visitas||0;
+          meta.investimento+= s.meta.investimento||0;
+        }
+        if (s.google) {
+          if (!google) google = {cliques:0,conversas:0,investimento:0};
+          google.cliques    += s.google.cliques||0;
+          google.conversas  += s.google.conversas||0;
+          google.investimento+=s.google.investimento||0;
+        }
+      });
+      return {meta, google};
+    }
+
+    const aggData = {};
+    selected.forEach(mk => { aggData[mk] = getMonthAgg(mk); });
+    const cols = selected.length;
+
+    html += buildCompareTable(
+      'Meta Ads', 'badge-meta', hasMeta,
+      selected,
+      mk => aggData[mk]?.meta,
+      mk => MONTHS[mk]?.label||mk
+    );
+    html += buildCompareTable(
+      'Google Ads', 'badge-google', hasGoogle,
+      selected,
+      mk => aggData[mk]?.google,
+      mk => MONTHS[mk]?.label||mk,
+      true
+    );
+
+    // Variação entre últimos 2 selecionados
+    if (selected.length >= 2) {
+      const l = aggData[selected[selected.length-1]]?.meta;
+      const p = aggData[selected[selected.length-2]]?.meta;
+      if (l && p) {
+        html += `<div class="variation-bar">
+          <strong>${MONTHS[selected[selected.length-2]]?.short} → ${MONTHS[selected[selected.length-1]]?.short}:</strong>&nbsp;
+          Alcance ${trend(l.alcance,p.alcance)}&nbsp;&nbsp;
+          ${l.conversas?'Conversas '+trend(l.conversas,p.conversas)+'&nbsp;&nbsp;':''}
+          ${l.seguidores?'Seguidores '+trend(l.seguidores,p.seguidores)+'&nbsp;&nbsp;':''}
+          Investimento ${trend(l.investimento,p.investimento,true)}
+        </div>`;
+      }
+    }
+
+  // ── MODO SEMANAS ──
+  } else {
+    html += `<div class="card" style="margin-bottom:1.25rem">
+      <div class="card-title">Selecione as semanas (mín. 2)</div>`;
+
+    allMonths.forEach(mk => {
+      const weeks = getWeeksForMonth(activeClient, mk).filter(k => k.includes('-s'));
+      if (!weeks.length) return;
+      html += `<div style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${MONTHS[mk]?.label||mk}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">`;
+      weeks.forEach((k, i) => {
+        const sel = compareWeeks.includes(k);
+        const periodo = (WEEK_LABELS[k]||'').replace(/Sem \d+ · /,'');
+        html += `<div onclick="toggleCompareWeek('${k}')" class="sel-chip ${sel?'sel-active':''}">
+          Semana ${i+1}
+          ${periodo ? `<span style="display:block;font-size:10px;opacity:.65;margin-top:1px">${periodo}</span>` : ''}
+        </div>`;
+      });
+      html += `</div></div>`;
+    });
+    html += `</div>`;
+
+    if (compareWeeks.length < 2) {
+      html += `<div class="obj-bar">Selecione pelo menos 2 semanas para comparar.</div>`;
+      document.getElementById('content').innerHTML = html;
+      return;
+    }
+
+    function weekLabel(k) {
+      const mk = allMonths.find(m => k.startsWith(m));
+      const ws = mk ? getWeeksForMonth(activeClient,mk).filter(w=>w.includes('-s')) : [];
+      const i = ws.indexOf(k);
+      return `${MONTHS[mk]?.short||mk} · Sem ${i+1}`;
+    }
+
+    html += buildCompareTable(
+      'Meta Ads', 'badge-meta', hasMeta,
+      compareWeeks,
+      k => c.semanas[k]?.meta,
+      k => weekLabel(k)
+    );
+    html += buildCompareTable(
+      'Google Ads', 'badge-google', hasGoogle,
+      compareWeeks,
+      k => c.semanas[k]?.google,
+      k => weekLabel(k),
+      true
+    );
+
+    // Variação entre últimas 2 semanas
+    if (compareWeeks.length >= 2) {
+      const l = c.semanas[compareWeeks[compareWeeks.length-1]]?.meta;
+      const p = c.semanas[compareWeeks[compareWeeks.length-2]]?.meta;
+      if (l && p) {
+        html += `<div class="variation-bar">
+          <strong>${weekLabel(compareWeeks[compareWeeks.length-2])} → ${weekLabel(compareWeeks[compareWeeks.length-1])}:</strong>&nbsp;
+          Alcance ${trend(l.alcance,p.alcance)}&nbsp;&nbsp;
+          ${l.conversas?'Conversas '+trend(l.conversas,p.conversas)+'&nbsp;&nbsp;':''}
+          ${l.seguidores?'Seguidores '+trend(l.seguidores,p.seguidores)+'&nbsp;&nbsp;':''}
+          Investimento ${trend(l.investimento,p.investimento,true)}
+        </div>`;
+      }
+    }
   }
+
+  document.getElementById('content').innerHTML = html;
 }
+
+// Função auxiliar que monta a tabela de comparação
+function buildCompareTable(title, badgeClass, hasPlat, keys, getData, getLabel, isGoogle=false) {
+  if (!hasPlat) return '';
+  const hasAnyData = keys.some(k => getData(k) != null);
+  if (!hasAnyData) return '';
+
+  let html = `<div class="card"><div class="card-title"><span class="platform-badge ${badgeClass}">${title}</span></div>
+    <div class="compare-grid" style="grid-template-columns:repeat(${keys.length},1fr)">`;
+
+  keys.forEach(k => {
+    const d = getData(k);
+    const lbl = getLabel(k);
+    if (!d) {
+      html += `<div class="compare-col"><h4>${lbl}</h4><div class="compare-row"><span class="compare-label" style="font-style:italic">Sem dados</span></div></div>`;
+      return;
+    }
+    if (isGoogle) {
+      const cpConvG = d.conversas>0 ? fmtR(Math.round(d.investimento/d.conversas*100)/100) : '—';
+      html += `<div class="compare-col"><h4>${lbl}</h4>
+        <div class="compare-row"><span class="compare-label">Cliques</span><span class="compare-val">${fmt(d.cliques)}</span></div>
+        <div class="compare-row"><span class="compare-label">Conversas</span><span class="compare-val">${fmt(d.conversas)}</span></div>
+        <div class="compare-row"><span class="compare-label">Investido</span><span class="compare-val">${fmtR(d.investimento)}</span></div>
+        <div class="compare-row"><span class="compare-label">Custo/conv.</span><span class="compare-val">${cpConvG}</span></div>
+      </div>`;
+    } else {
+      const cpConv = d.conversas>0 ? fmtR(Math.round(d.investimento/d.conversas*100)/100) : null;
+      const cpSeg  = d.seguidores>0 ? fmtR(Math.round(d.investimento/d.seguidores*100)/100) : null;
+      html += `<div class="compare-col"><h4>${lbl}</h4>
+        <div class="compare-row"><span class="compare-label">Alcance</span><span class="compare-val">${fmt(d.alcance)}</span></div>
+        ${d.visitas    ? `<div class="compare-row"><span class="compare-label">Visitas</span><span class="compare-val">${fmt(d.visitas)}</span></div>` : ''}
+        ${d.seguidores ? `<div class="compare-row"><span class="compare-label">Seguidores</span><span class="compare-val">${fmt(d.seguidores)}</span></div>` : ''}
+        ${d.conversas  ? `<div class="compare-row"><span class="compare-label">Conversas</span><span class="compare-val">${fmt(d.conversas)}</span></div>` : ''}
+        <div class="compare-row"><span class="compare-label">Investido</span><span class="compare-val">${fmtR(d.investimento)}</span></div>
+        ${cpConv ? `<div class="compare-row"><span class="compare-label">Custo/conv.</span><span class="compare-val">${cpConv}</span></div>` : ''}
+        ${cpSeg  ? `<div class="compare-row"><span class="compare-label">Custo/seg.</span><span class="compare-val">${cpSeg}</span></div>`  : ''}
+      </div>`;
+    }
+  });
+  html += `</div></div>`;
+  return html;
+}
+
+
+function toggleCompareMonth(mk) {
+  if (compareMonths.includes(mk)) {
+    if (compareMonths.length <= 1) return;
+    compareMonths = compareMonths.filter(m => m !== mk);
+  } else {
+    compareMonths.push(mk);
+  }
+  renderAll();
+}
+
+function toggleCompareWeek(k) {
+  if (compareWeeks.includes(k)) {
+    if (compareWeeks.length <= 1) return;
+    compareWeeks = compareWeeks.filter(w => w !== k);
+  } else {
+    compareWeeks.push(k);
+  }
+  renderAll();
+}
+
+function setCompareMode(mode) {
+  compareMode = mode;
+  if (mode === 'weeks' && compareWeeks.length < 2) {
+    // Auto-select first week of each available month as default
+    const months = getMonthsForClient(activeClient);
+    compareWeeks = months.map(mk => getWeeksForMonth(activeClient, mk).find(k => k.includes('-s'))).filter(Boolean).slice(0,2);
+  }
+  renderAll();
+}
+
 
 function getOtims() { return getStorage(`otim__${activeClient}__${activeWeek}`) || []; }
 async function saveOtims(arr) { await setStorage(`otim__${activeClient}__${activeWeek}`, arr); }
@@ -501,10 +825,18 @@ function renderAll() {
   document.getElementById('main-title').textContent = activeClient;
   document.getElementById('main-sub').textContent = c.plataformas.map(p => p === 'meta' ? 'Meta Ads' : 'Google Ads').join(' + ') + ` · Orçamento R$ ${(c.orcamento.meta + c.orcamento.google).toLocaleString('pt-BR')}/mês`;
   renderSidebar();
-  renderWeekTabs();
-  if (activeWeek === 'compare') renderCompare();
+  renderNav();
+  if (activeView === 'compare') renderCompare();
+  else if (activeView === 'month') renderMonthTotal();
   else renderWeek();
 }
+
+// Auto-populate compareWeeks with first available week per month
+const _initAllMonths = getMonthsForClient(activeClient);
+compareWeeks = _initAllMonths
+  .map(mk => getWeeksForMonth(activeClient, mk).find(k => k.includes('-s')))
+  .filter(Boolean)
+  .slice(0, 2);
 
 renderAll();
 syncFromCloud();
