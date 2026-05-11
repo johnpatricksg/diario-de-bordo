@@ -194,8 +194,8 @@ const TOKEN_MAP = {"Fabiana": "c9814c7416f2", "Dr. Gustavo": "03f13235db74", "Dr
 // ── Supabase ──
 const SUPA_URL = "https://ppxeuzibuvakcnnqkevp.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBweGV1emlidXZha2NubnFrZXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyOTU4NDEsImV4cCI6MjA5Mjg3MTg0MX0.h8e9Wj5Gbjv97dk3-4dqOxN9JAR1xZw9ggrVHMm94W0";
-function lsGet(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}}
 async function getStorage(key){
+  const cached=lsGet(key);
   try{
     const r=await fetch(`${SUPA_URL}/rest/v1/diario?id=eq.${encodeURIComponent(key)}&select=conteudo`,{headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}});
     if(r.ok){const d=await r.json();if(d&&d.length>0){const v=JSON.parse(d[0].conteudo);try{localStorage.setItem(key,JSON.stringify(v));}catch(e){}return v;}}
