@@ -159,7 +159,10 @@
       <p id="main-sub"></p>
     </div>
     <div style="display:flex;gap:8px">
+      <button class="icon-btn" onclick="openEditClientModal()">✏️ Editar cliente</button>
+      <button class="icon-btn" onclick="openCsvImportModal()">📤 Importar CSV</button>
       <button class="icon-btn" onclick="openAddReportModal()">+ Lançar relatório</button>
+      <button class="icon-btn" onclick="openReportPreview()">📋 Extrair relatório</button>
       <button class="icon-btn primary" onclick="copyClientLink()">🔗 Link do cliente</button>
     </div>
   </div>
@@ -874,8 +877,394 @@ async function init() {
   }
 }
 
+// ══════════════════════════════════════════
+// IMPORTADOR DE CSV — META ADS (relatório diário)
+// ══════════════════════════════════════════
+
+// Parser de CSV robusto (lida com campos entre aspas contendo vírgulas)
+function parseCSV(text) {
+  // Remove BOM se presente
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i+1];
+    if (inQuotes) {
+      if (ch === '"' && next === '"') { field += '"'; i++; }
+      else if (ch === '"') { inQuotes = false; }
+      else { field += ch; }
+    } else {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === ',') { row.push(field); field = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && next === '\n') i++;
+        row.push(field); field = '';
+        if (row.length > 1 || row[0] !== '') rows.push(row);
+        row = [];
+      } else { field += ch; }
+    }
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+
+  if (!rows.length) return [];
+  const headers = rows[0];
+  return rows.slice(1).map(r => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h.trim()] = (r[i] || '').trim(); });
+    return obj;
+  });
+}
+
+// (substituído por aggregateMetaCsvByDayMapped, ver seção de mapeamento dinâmico)
+
+let pendingCsvRows = null;
+let pendingCsvFileName = '';
+
+function handleCsvFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  pendingCsvFileName = file.name;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const parsed = parseCSV(e.target.result);
+    pendingCsvRows = parsed;
+    const days = new Set(parsed.map(r => r['Dia']).filter(Boolean));
+    document.getElementById('csv-preview').innerHTML =
+      `<strong>${file.name}</strong><br>${parsed.length} linhas · ${days.size} dias identificados` +
+      (days.size ? `<br>Período: ${[...days].sort()[0]} até ${[...days].sort().slice(-1)[0]}` : '');
+    const types = detectResultTypes(parsed);
+    if (types.length) renderTypeMappingUI(types);
+    else document.getElementById('csv-type-mapping').innerHTML = '';
+    document.getElementById('csv-submit-btn').disabled = false;
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function openCsvImportModal() {
+  const sel = document.getElementById('csv-client');
+  sel.innerHTML = ALL_CLIENTS.map(c => `<option value="${c.id}" ${c.id===activeClientId?'selected':''}>${c.name}</option>`).join('');
+  pendingCsvRows = null;
+  document.getElementById('csv-file-input').value = '';
+  document.getElementById('csv-preview').innerHTML = '';
+  document.getElementById('csv-submit-btn').disabled = true;
+  document.getElementById('csv-import-modal').classList.add('open');
+}
+function closeCsvImportModal() { document.getElementById('csv-import-modal').classList.remove('open'); }
+
+async function submitCsvImport() {
+  if (!pendingCsvRows || !pendingCsvRows.length) return;
+  const clientId = document.getElementById('csv-client').value;
+  const btn = document.getElementById('csv-submit-btn');
+  btn.textContent = 'Importando...'; btn.disabled = true;
+
+  try {
+    const byDay = aggregateMetaCsvByDayMapped(pendingCsvRows, csvTypeMapping);
+    const days = Object.keys(byDay).sort();
+
+    const reportsToInsert = days.map(day => ({
+      client_id: clientId, platform: 'meta',
+      period_start: day, period_end: day,
+      alcance: Math.round(byDay[day].alcance),
+      investimento: Math.round(byDay[day].investimento * 100) / 100,
+      conversas: byDay[day].has.conversas ? Math.round(byDay[day].conversas) : null,
+      visitas: byDay[day].has.visitas ? Math.round(byDay[day].visitas) : null,
+      seguidores: byDay[day].has.seguidores ? Math.round(byDay[day].seguidores) : null,
+      cliques: byDay[day].has.cliques ? Math.round(byDay[day].cliques) : null,
+      cpc: null, impressoes: null, obs: null,
+    }));
+
+    // Remove relatórios existentes desses mesmos dias/cliente/plataforma para evitar duplicidade
+    if (days.length) {
+      const filter = `client_id=eq.${encodeURIComponent(clientId)}&platform=eq.meta&period_start=in.(${days.join(',')})`;
+      await fetch(`${SUPA_URL}/rest/v1/pilar_reports?${filter}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+      });
+    }
+
+    // Insere em lotes
+    const batchSize = 25;
+    for (let i = 0; i < reportsToInsert.length; i += batchSize) {
+      await supaPost('pilar_reports', reportsToInsert.slice(i, i + batchSize));
+    }
+
+    closeCsvImportModal();
+    if (clientId === activeClientId) loadAndRender();
+
+    const toast = document.getElementById('toast');
+    toast.textContent = `${days.length} dias importados!`;
+    toast.classList.add('show');
+    setTimeout(() => { toast.classList.remove('show'); toast.textContent = 'Salvo!'; }, 3000);
+  } catch(e) {
+    alert('Erro ao importar CSV: ' + e.message);
+  }
+  btn.textContent = 'Importar dados'; btn.disabled = false;
+}
+
+
+// ══════════════════════════════════════════
+// IMPORTADOR DE CSV — MAPEAMENTO DINÂMICO
+// ══════════════════════════════════════════
+let csvTypeMapping = {}; // { "Tipo de resultado": "conversas"|"visitas"|"seguidores"|"cliques"|"ignorar" }
+
+function guessFieldForType(tipo) {
+  const t = tipo.toLowerCase();
+  if (t.includes('mensagem') || t.includes('conversa')) return 'conversas';
+  if (t.includes('perfil')) return 'visitas';
+  if (t.includes('seguidor')) return 'seguidores';
+  if (t.includes('clique') || t.includes('link')) return 'cliques';
+  return 'ignorar';
+}
+
+function detectResultTypes(rows) {
+  const types = new Set();
+  rows.forEach(r => { if (r['Tipo de resultado']) types.add(r['Tipo de resultado']); });
+  return [...types];
+}
+
+function renderTypeMappingUI(types) {
+  csvTypeMapping = {};
+  types.forEach(t => { csvTypeMapping[t] = guessFieldForType(t); });
+
+  const opts = [
+    {v:'conversas', l:'Conversas iniciadas'},
+    {v:'visitas', l:'Visitas ao perfil'},
+    {v:'seguidores', l:'Novos seguidores'},
+    {v:'cliques', l:'Cliques'},
+    {v:'ignorar', l:'Não usar'},
+  ];
+
+  const html = types.map(t => `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:12px;color:var(--text);flex:1">${t}</span>
+      <select onchange="csvTypeMapping['${t.replace(/'/g,"\\'")}'] = this.value" style="font-size:12px;padding:4px 8px;border-radius:6px;border:0.5px solid var(--border2)">
+        ${opts.map(o => `<option value="${o.v}" ${csvTypeMapping[t]===o.v?'selected':''}>${o.l}</option>`).join('')}
+      </select>
+    </div>`).join('');
+
+  document.getElementById('csv-type-mapping').innerHTML =
+    `<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px">Confirme o que cada resultado representa:</div>` + html;
+}
+
+// Agrega linhas do CSV por dia, usando o mapeamento confirmado pelo usuário
+function aggregateMetaCsvByDayMapped(rows, mapping) {
+  const byDay = {};
+  rows.forEach(r => {
+    const day = r['Dia'];
+    if (!day) return;
+    if (!byDay[day]) byDay[day] = { alcance: 0, investimento: 0, conversas: 0, visitas: 0, seguidores: 0, cliques: 0, has: {} };
+
+    byDay[day].alcance += parseFloat(r['Alcance']) || 0;
+    byDay[day].investimento += parseFloat(r['Valor usado (BRL)']) || 0;
+
+    const tipo = r['Tipo de resultado'];
+    const target = mapping[tipo];
+    if (target && target !== 'ignorar') {
+      const resultado = parseFloat(r['Resultados']) || 0;
+      byDay[day][target] += resultado;
+      byDay[day].has[target] = true;
+    }
+  });
+  return byDay;
+}
+
+
+// ══════════════════════════════════════════
+// EDITAR CLIENTE (objetivo, plataformas, orçamento)
+// ══════════════════════════════════════════
+function openEditClientModal() {
+  const c = getActiveClient();
+  if (!c) return;
+  document.getElementById('em-name').value = c.name;
+  document.getElementById('em-objective').value = c.objective || '';
+  document.getElementById('em-budget-meta').value = c.budget_meta || 0;
+  document.getElementById('em-budget-google').value = c.budget_google || 0;
+  document.getElementById('em-platform-meta').checked = (c.platforms||[]).includes('meta');
+  document.getElementById('em-platform-google').checked = (c.platforms||[]).includes('google');
+  document.getElementById('em-active').checked = c.active;
+  document.getElementById('client-edit-modal').classList.add('open');
+}
+function closeEditClientModal() { document.getElementById('client-edit-modal').classList.remove('open'); }
+
+async function submitEditClient() {
+  const c = getActiveClient();
+  if (!c) return;
+
+  const platforms = [];
+  if (document.getElementById('em-platform-meta').checked) platforms.push('meta');
+  if (document.getElementById('em-platform-google').checked) platforms.push('google');
+
+  const updates = {
+    objective: document.getElementById('em-objective').value.trim(),
+    budget_meta: Number((document.getElementById('em-budget-meta').value || '0').replace(',','.')),
+    budget_google: Number((document.getElementById('em-budget-google').value || '0').replace(',','.')),
+    platforms,
+    active: document.getElementById('em-active').checked,
+  };
+
+  try {
+    await supaPatch('pilar_clients', `id=eq.${encodeURIComponent(c.id)}`, updates);
+    Object.assign(c, updates); // atualiza localmente sem precisar recarregar tudo
+    closeEditClientModal();
+    loadAndRender();
+    const toast = document.getElementById('toast');
+    toast.textContent = 'Cliente atualizado!';
+    toast.classList.add('show'); setTimeout(() => { toast.classList.remove('show'); toast.textContent='Salvo!'; }, 2500);
+  } catch(e) {
+    alert('Erro ao atualizar cliente: ' + e.message);
+  }
+}
+
+
 init();
 
+// ══════════════════════════════════════════
+// GERADOR DE RELATÓRIO — FORMATO WHATSAPP
+// ══════════════════════════════════════════
+function fmtPeriodoWhats(start, end) {
+  const [ys, ms, ds] = start.split('-');
+  const [ye, me, de] = end.split('-');
+  return `${ds}/${ms} – ${de}/${me}/${ye}`;
+}
+
+function periodTitle(start, end) {
+  const days = (new Date(end) - new Date(start)) / 86400000 + 1;
+  if (days >= 27 && days <= 31) return 'Relatório Mensal de Tráfego';
+  if (days >= 6 && days <= 8) return 'Relatório Semanal de Tráfego';
+  return 'Relatório de Tráfego';
+}
+
+function fmtNumWhats(n) {
+  return (n != null) ? Number(n).toLocaleString('pt-BR') : '0';
+}
+function fmtMoneyWhats(n) {
+  return (n != null) ? Number(n).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00';
+}
+
+function generateWhatsAppReport() {
+  const c = getActiveClient();
+  if (!c) return '';
+
+  const metaAgg = aggregateReports(currentReports, 'meta');
+  const googleAgg = aggregateReports(currentReports, 'google');
+  const hasMeta = (c.platforms||[]).includes('meta') && metaAgg;
+  const hasGoogle = (c.platforms||[]).includes('google') && googleAgg;
+
+  const linha = '━━━━━━━━━━━━━━━━━━━━━';
+  let msg = `📊 *${periodTitle(rangeStart, rangeEnd)}*\n\n`;
+  msg += `👤 *${c.name}*\n\n`;
+  msg += `📆 Período: ${fmtPeriodoWhats(rangeStart, rangeEnd)}\n\n`;
+
+  if (hasMeta) {
+    msg += `🔵 *Meta ADS*\n${linha}\n`;
+    if (metaAgg.alcance != null) msg += `🎯 Alcance: ${fmtNumWhats(metaAgg.alcance)} pessoas impactadas\n`;
+    if (metaAgg.visitas != null) msg += `👁 Visitas ao perfil: ${fmtNumWhats(metaAgg.visitas)}\n`;
+    if (metaAgg.seguidores != null) msg += `📈 Novos seguidores: +${fmtNumWhats(metaAgg.seguidores)}\n`;
+    if (metaAgg.conversas != null) msg += `💬 Conversas iniciadas: ${fmtNumWhats(metaAgg.conversas)}\n`;
+    msg += `💸 Investimento${hasGoogle?' Meta':''}: R$ ${fmtMoneyWhats(metaAgg.investimento)}\n`;
+    metaAgg.obsList.forEach(o => { msg += `⚠️ ${o}\n`; });
+    msg += `\n`;
+  }
+
+  if (hasGoogle) {
+    msg += `🔴 *Google ADS*\n${linha}\n`;
+    if (googleAgg.cliques != null) msg += `🖱 Cliques: ${fmtNumWhats(googleAgg.cliques)}\n`;
+    if (googleAgg.cliques > 0 && googleAgg.investimento > 0) {
+      const cpc = googleAgg.investimento / googleAgg.cliques;
+      msg += `💵 Custo por clique: R$ ${fmtMoneyWhats(cpc)}\n`;
+    }
+    if (googleAgg.conversas != null) msg += `💬 Conversas iniciadas: ${fmtNumWhats(googleAgg.conversas)}\n`;
+    msg += `💸 Investimento${hasMeta?' Google':''}: R$ ${fmtMoneyWhats(googleAgg.investimento)}\n`;
+    googleAgg.obsList.forEach(o => { msg += `⚠️ ${o}\n`; });
+    msg += `\n`;
+  }
+
+  if (hasMeta && hasGoogle) {
+    const total = metaAgg.investimento + googleAgg.investimento;
+    msg += `${linha}\n💰 Investimento total do período: R$ ${fmtMoneyWhats(total)}\n${linha}\n\n`;
+  }
+
+  msg += `✅ Qualquer dúvida, estou à disposição. 😊`;
+
+  return msg;
+}
+
+function openReportPreview() {
+  const text = generateWhatsAppReport();
+  document.getElementById('report-preview-text').value = text;
+  document.getElementById('report-preview-modal').classList.add('open');
+}
+function closeReportPreview() { document.getElementById('report-preview-modal').classList.remove('open'); }
+
+function copyReportPreview() {
+  const ta = document.getElementById('report-preview-text');
+  ta.select();
+  navigator.clipboard.writeText(ta.value).then(() => {
+    const btn = document.getElementById('copy-report-btn');
+    const original = btn.textContent;
+    btn.textContent = 'Copiado! ✓';
+    setTimeout(() => { btn.textContent = original; }, 2000);
+  }).catch(() => { document.execCommand('copy'); });
+}
+
 </script>
+<!-- Modal: Report Preview -->
+<div class="modal-overlay" id="report-preview-modal">
+  <div class="modal" style="max-width:600px">
+    <h3>Relatório para WhatsApp</h3>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:10px">Baseado no período e plataforma(s) selecionados no dashboard. Copie e cole no grupo do cliente.</p>
+    <textarea id="report-preview-text" style="min-height:320px;font-family:monospace;font-size:12.5px;white-space:pre-wrap"></textarea>
+    <div class="modal-btns">
+      <button onclick="closeReportPreview()">Fechar</button>
+      <button class="primary" id="copy-report-btn" onclick="copyReportPreview()">Copiar texto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: CSV Import -->
+<div class="modal-overlay" id="csv-import-modal">
+  <div class="modal">
+    <h3>Importar CSV do Meta Ads</h3>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Exporte do Gerenciador de Anúncios com detalhamento "Por dia" e envie o CSV aqui. Um relatório será criado para cada dia encontrado.</p>
+    <div class="form-field" style="margin-bottom:10px"><label>Cliente</label><select id="csv-client"></select></div>
+    <div class="form-field" style="margin-bottom:10px">
+      <label>Arquivo CSV</label>
+      <input type="file" id="csv-file-input" accept=".csv" onchange="handleCsvFileSelect(this)" style="width:100%;font-size:13px" />
+    </div>
+    <div id="csv-preview" style="font-size:12px;color:var(--text2);background:var(--bg2);border-radius:var(--radius);padding:10px;min-height:20px;margin-bottom:10px"></div>
+    <div id="csv-type-mapping" style="margin-bottom:10px"></div>
+    <div class="modal-btns">
+      <button onclick="closeCsvImportModal()">Cancelar</button>
+      <button class="primary" id="csv-submit-btn" onclick="submitCsvImport()" disabled>Importar dados</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Edit Client -->
+<div class="modal-overlay" id="client-edit-modal">
+  <div class="modal">
+    <h3>Editar cliente</h3>
+    <div class="form-field" style="margin-bottom:10px"><label>Nome</label><input type="text" id="em-name" disabled style="opacity:.6" /></div>
+    <div class="form-field" style="margin-bottom:10px"><label>Objetivo / Estratégia atual</label><textarea id="em-objective" placeholder="Ex: Aumentar leads no WhatsApp para fechar consultas."></textarea></div>
+    <div class="form-row">
+      <div class="form-field"><label>Orçamento Meta (R$/mês)</label><input type="text" id="em-budget-meta" /></div>
+      <div class="form-field"><label>Orçamento Google (R$/mês)</label><input type="text" id="em-budget-google" /></div>
+    </div>
+    <div style="display:flex;gap:16px;margin:10px 0">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="em-platform-meta" /> Meta Ads</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="em-platform-google" /> Google Ads</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="em-active" /> Cliente ativo</label>
+    </div>
+    <div class="modal-btns">
+      <button onclick="closeEditClientModal()">Cancelar</button>
+      <button class="primary" onclick="submitEditClient()">Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
