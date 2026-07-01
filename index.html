@@ -632,21 +632,46 @@ function showChartTip(evt, idx) {
   positionChartTip(evt);
 }
 
+function handleChartTouch(evt, idx) {
+  evt.preventDefault();
+  evt.stopPropagation();
+  showChartTip(evt, idx);
+  // marca que o tooltip foi aberto por toque, para não fechar imediatamente
+  window._chartTipOpenedAt = Date.now();
+}
+
 function positionChartTip(evt) {
   const tip = document.getElementById('chart-tooltip');
   const wrap = document.getElementById('chart-container');
   if (!tip || !wrap) return;
   const wrapRect = wrap.getBoundingClientRect();
-  const x = (evt.clientX || (evt.touches && evt.touches[0].clientX) || 0) - wrapRect.left;
-  const y = (evt.clientY || (evt.touches && evt.touches[0].clientY) || 0) - wrapRect.top;
-  tip.style.left = Math.min(x + 12, wrapRect.width - 160) + 'px';
-  tip.style.top = Math.max(y - 50, 0) + 'px';
+  let clientX, clientY;
+  if (evt.touches && evt.touches.length) { clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY; }
+  else { clientX = evt.clientX; clientY = evt.clientY; }
+  const x = clientX - wrapRect.left;
+  const y = clientY - wrapRect.top;
+  const tipWidth = 170;
+  let left = x + 12;
+  if (left + tipWidth > wrapRect.width) left = x - tipWidth - 12;
+  if (left < 0) left = 4;
+  tip.style.left = left + 'px';
+  tip.style.top = Math.max(y - 55, 0) + 'px';
 }
 
 function hideChartTip() {
   const tip = document.getElementById('chart-tooltip');
   if (tip) tip.style.display = 'none';
 }
+
+// Fecha o tooltip ao tocar fora do gráfico (necessário no celular, que não tem "mouseleave")
+document.addEventListener('touchstart', function(evt) {
+  const wrap = document.getElementById('chart-container');
+  const tip = document.getElementById('chart-tooltip');
+  if (!wrap || !tip || tip.style.display !== 'block') return;
+  // se o toque foi recém aberto pelo próprio ponto, não fecha nesse mesmo evento
+  if (window._chartTipOpenedAt && Date.now() - window._chartTipOpenedAt < 100) return;
+  if (!wrap.contains(evt.target)) hideChartTip();
+}, { passive: true });
 
 
 function drawChart(reports, showMeta, showGoogle) {
@@ -709,12 +734,10 @@ function drawChart(reports, showMeta, showGoogle) {
     pts.forEach(p => {
       const idx = pointIndex++;
       pointsData.push({ series: s.name, color: s.color, date: p.date, val: p.val });
-      svg += `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${s.color}" style="cursor:pointer"
+      svg += `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${s.color}" style="pointer-events:none"/>`;
+      svg += `<circle cx="${p.x}" cy="${p.y}" r="13" fill="transparent" style="cursor:pointer;touch-action:none"
         onmouseenter="showChartTip(event,${idx})" onmousemove="positionChartTip(event)" onmouseleave="hideChartTip()"
-        ontouchstart="showChartTip(event,${idx})" data-point-idx="${idx}"/>`;
-      svg += `<circle cx="${p.x}" cy="${p.y}" r="10" fill="transparent" style="cursor:pointer"
-        onmouseenter="showChartTip(event,${idx})" onmousemove="positionChartTip(event)" onmouseleave="hideChartTip()"
-        ontouchstart="showChartTip(event,${idx})" data-point-idx="${idx}"/>`;
+        ontouchstart="handleChartTouch(event,${idx})" data-point-idx="${idx}"/>`;
     });
   });
 
