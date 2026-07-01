@@ -160,22 +160,6 @@
 
 <div class="toast" id="toast">Salvo!</div>
 
-w Client -->
-<div class="modal-overlay" id="client-modal">
-  <div class="modal">
-    <h3>Novo cliente</h3>
-    <div class="form-field" style="margin-bottom:10px"><label>Nome do cliente</label><input type="text" id="cm-name" placeholder="Ex: Dr. João Silva" /></div>
-    <div class="form-field" style="margin-bottom:10px"><label>Objetivo da campanha</label><input type="text" id="cm-objective" placeholder="Ex: Aumentar leads no WhatsApp" /></div>
-    <div class="form-row">
-      <div class="form-field"><label>Orçamento Meta (R$/mês)</label><input type="text" id="cm-budget-meta" placeholder="0" /></div>
-      <div class="form-field"><label>Orçamento Google (R$/mês)</label><input type="text" id="cm-budget-google" placeholder="0" /></div>
-    </div>
-    <div class="modal-btns">
-      <button onclick="closeClientModal()">Cancelar</button>
-      <button class="primary" onclick="submitNewClient()">Criar cliente</button>
-    </div>
-  </div>
-</div>
 
 <script>
 // ══════════════════════════════════════════
@@ -310,6 +294,28 @@ function renderRangeBar() {
   </div>`;
   el.innerHTML = html;
 }
+
+async function loadAndRender() {
+  const c = getActiveClient();
+  if (!c) return;
+  document.getElementById('main-title').textContent = c.name;
+  document.getElementById('main-sub').textContent =
+    (c.platforms||[]).map(p => p==='meta'?'Meta Ads':'Google Ads').join(' + ') +
+    ` · Orçamento R$ ${((c.budget_meta||0)+(c.budget_google||0)).toLocaleString('pt-BR')}/mês`;
+
+  renderRangeBar();
+  renderPlatformTabs();
+
+  document.getElementById('content').innerHTML = '<div class="empty">Carregando relatórios...</div>';
+  try {
+    currentReports = await loadReports(activeClientId, rangeStart, rangeEnd);
+  } catch(e) {
+    console.error(e);
+    currentReports = [];
+  }
+  renderContent();
+}
+
 
 function setPreset(preset) {
   activePreset = preset;
