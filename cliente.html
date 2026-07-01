@@ -495,7 +495,7 @@ function metricBox(label, value, tipText) {
   return `<div class="metric"><div class="metric-label">${label}${tip(tipText)}</div><div class="metric-value">${value}</div></div>`;
 }
 // ══════════════════════════════════════════
-// GRÁFICO DE EVOLUÇÃO (SVG VANILLA)
+// GRÁFICO DE EVOLUÇÃO (SVG VANILLA) — valores visíveis nos pontos
 // ══════════════════════════════════════════
 let chartMetric = 'investimento'; // 'investimento' | 'alcance' | 'conversas'
 
@@ -537,6 +537,9 @@ function drawChart(reports, showMeta, showGoogle) {
     if (chartMetric === 'conversas') return Number(row.conversas ?? row.cliques) || 0;
     return 0;
   }
+  function fmtVal(v) {
+    return chartMetric === 'investimento' ? fmtR(v) : fmt(v);
+  }
 
   const series = [];
   if (showMeta && metaRows.length) series.push({ name: 'Meta Ads', color: '#F26522', rows: metaRows });
@@ -544,15 +547,23 @@ function drawChart(reports, showMeta, showGoogle) {
 
   if (!series.length) { container.innerHTML = '<div class="empty">Sem dados para exibir.</div>'; legend.innerHTML=''; return; }
 
-  const W = 680, H = 240, padL = 50, padR = 20, padT = 20, padB = 40;
   const allDates = [...new Set(reports.map(r => r.period_start))].sort();
   const n = allDates.length;
+
+  // Decide quais índices recebem rótulo de valor (evita poluição visual com muitos pontos)
+  const maxLabels = 10;
+  const step = n > maxLabels ? Math.ceil(n / maxLabels) : 1;
+  const labeledIdx = new Set();
+  for (let i = 0; i < n; i += step) labeledIdx.add(i);
+  labeledIdx.add(n - 1);
+
+  const W = Math.max(560, n * 46), H = 260, padL = 46, padR = 20, padT = 34, padB = 40;
   const maxVal = Math.max(1, ...series.flatMap(s => s.rows.map(getVal)));
 
   const xFor = (i) => padL + (n > 1 ? (i / (n-1)) * (W - padL - padR) : (W-padL-padR)/2);
   const yFor = (v) => H - padB - (v / maxVal) * (H - padT - padB);
 
-  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto" xmlns="http://www.w3.org/2000/svg">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:${W}px;height:auto" xmlns="http://www.w3.org/2000/svg">`;
 
   // grid lines
   for (let g = 0; g <= 4; g++) {
@@ -562,22 +573,30 @@ function drawChart(reports, showMeta, showGoogle) {
 
   // x-axis labels (dates)
   allDates.forEach((d, i) => {
-    if (n > 8 && i % Math.ceil(n/8) !== 0) return;
+    if (n > 12 && i % Math.ceil(n/12) !== 0 && i !== n-1) return;
     const x = xFor(i);
     svg += `<text x="${x}" y="${H-14}" font-size="9" fill="#5a7278" text-anchor="middle">${fmtDate(d).slice(0,5)}</text>`;
   });
 
-  series.forEach(s => {
+  series.forEach((s, sIdx) => {
     const pts = allDates.map((d, i) => {
       const row = s.rows.find(r => r.period_start === d);
-      return row ? {x: xFor(i), y: yFor(getVal(row))} : null;
+      return row ? {x: xFor(i), y: yFor(getVal(row)), idx: i, val: getVal(row)} : null;
     }).filter(Boolean);
 
     if (pts.length > 1) {
       const path = pts.map((p,i) => (i===0?'M':'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
       svg += `<path d="${path}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
     }
-    pts.forEach(p => { svg += `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${s.color}"/>`; });
+
+    pts.forEach(p => {
+      svg += `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${s.color}"/>`;
+      if (labeledIdx.has(p.idx)) {
+        // segunda série (Google) recebe rótulo mais abaixo do ponto para não colidir com a primeira
+        const labelY = sIdx === 0 ? p.y - 10 : p.y + 16;
+        svg += `<text x="${p.x}" y="${labelY}" font-size="10" font-weight="600" fill="${s.color}" text-anchor="middle">${fmtVal(p.val)}</text>`;
+      }
+    });
   });
 
   svg += `</svg>`;
@@ -587,29 +606,7 @@ function drawChart(reports, showMeta, showGoogle) {
     `<div class="chart-legend-item"><div class="chart-legend-dot" style="background:${s.color}"></div>${s.name}</div>`
   ).join('');
 }
-// ══════════════════════════════════════════
-// CARREGAMENTO E INICIALIZAÇÃO
-// ══════════════════════════════════════════
-async function loadAndRender() {
-  const c = getActiveClient();
-  if (!c) return;
-  document.getElementById('main-title').textContent = c.name;
-  document.getElementById('main-sub').textContent =
-    (c.platforms||[]).map(p => p==='meta'?'Meta Ads':'Google Ads').join(' + ') +
-    ` · Orçamento R$ ${((c.budget_meta||0)+(c.budget_google||0)).toLocaleString('pt-BR')}/mês`;
 
-  renderRangeBar();
-  renderPlatformTabs();
-
-  document.getElementById('content').innerHTML = '<div class="empty">Carregando relatórios...</div>';
-  try {
-    currentReports = await loadReports(activeClientId, rangeStart, rangeEnd);
-  } catch(e) {
-    console.error(e);
-    currentReports = [];
-  }
-  renderContent();
-}
 
 function showAccessDenied() {
   document.getElementById('main-title').textContent = 'Acesso negado';

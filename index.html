@@ -86,17 +86,7 @@
   .chart-metric-btn.active { background:var(--orange-light); color:var(--orange); border-color:var(--orange-mid); font-weight:600; }
   .chart-svg-wrap { width:100%; overflow-x:auto; overflow-y:visible; }
   .chart-legend { display:flex; gap:14px; margin-top:8px; font-size:11px; color:var(--text2); }
-  .chart-svg-wrap { position: relative; }
-  .chart-flex { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-  .chart-flex .chart-svg-wrap { flex: 1 1 420px; min-width: 280px; }
-  .chart-table-wrap { flex: 0 0 220px; max-height: 260px; overflow-y: auto; border: 0.5px solid var(--border); border-radius: var(--radius); }
-  .chart-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .chart-table th { position: sticky; top: 0; background: var(--bg2); text-align: left; padding: 6px 8px; font-weight: 600; color: var(--text2); font-size: 10px; text-transform: uppercase; letter-spacing: .03em; }
-  .chart-table td { padding: 6px 8px; border-top: 0.5px solid var(--border); color: var(--text); }
-  .chart-table .row-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
-  @media (max-width: 700px) { .chart-table-wrap { flex: 1 1 100%; max-height: 200px; } }
-  .chart-tooltip { display:none; position:absolute; background:var(--dark); color:#fff; font-size:11px; padding:8px 10px; border-radius:6px; pointer-events:none; z-index:20; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.25); line-height:1.5; }
-  .chart-legend-item { display:flex; align-items:center; gap:5px; }
+                      .chart-legend-item { display:flex; align-items:center; gap:5px; }
   .chart-legend-dot { width:8px; height:8px; border-radius:50%; }
 
   /* Structured analysis */
@@ -557,10 +547,7 @@ function renderContent() {
   // Gráfico de evolução
   html += `<div class="card"><div class="card-title">Evolução no período</div>
     <div class="chart-controls" id="chart-controls"></div>
-    <div class="chart-flex">
-      <div class="chart-svg-wrap" id="chart-container"></div>
-      <div class="chart-table-wrap" id="chart-table"></div>
-    </div>
+    <div class="chart-svg-wrap" id="chart-container"></div>
     <div class="chart-legend" id="chart-legend"></div>
   </div>`;
 
@@ -596,7 +583,7 @@ function metricBox(label, value, tipText) {
   return `<div class="metric"><div class="metric-label">${label}${tip(tipText)}</div><div class="metric-value">${value}</div></div>`;
 }
 // ══════════════════════════════════════════
-// GRÁFICO DE EVOLUÇÃO (SVG VANILLA)
+// GRÁFICO DE EVOLUÇÃO (SVG VANILLA) — valores visíveis nos pontos
 // ══════════════════════════════════════════
 let chartMetric = 'investimento'; // 'investimento' | 'alcance' | 'conversas'
 
@@ -614,29 +601,6 @@ function renderChart(reports, showMeta, showGoogle) {
   drawChart(reports, showMeta, showGoogle);
 }
 
-function renderChartTable() {
-  const el = document.getElementById('chart-table');
-  if (!el) return;
-  const data = window._chartPointsData || [];
-  if (!data.length) { el.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--text2)">Sem pontos no período.</div>'; return; }
-
-  const sorted = [...data].sort((a,b) => b.date.localeCompare(a.date) || a.series.localeCompare(b.series));
-  const label = window._chartMetricLabel || '';
-
-  let html = `<table class="chart-table"><thead><tr><th>Data</th><th>Plataforma</th><th>${label}</th></tr></thead><tbody>`;
-  sorted.forEach(d => {
-    const valFormatted = chartMetric === 'investimento' ? fmtR(d.val) : fmt(d.val);
-    html += `<tr>
-      <td>${fmtDate(d.date)}</td>
-      <td><span class="row-dot" style="background:${d.color}"></span>${d.series}</td>
-      <td><strong>${valFormatted}</strong></td>
-    </tr>`;
-  });
-  html += `</tbody></table>`;
-  el.innerHTML = html;
-}
-
-
 function setChartMetric(k) {
   chartMetric = k;
   const c = getActiveClient();
@@ -647,71 +611,10 @@ function setChartMetric(k) {
   renderChart(currentReports, showMeta, showGoogle);
 }
 
-// ══════════════════════════════════════════
-// TOOLTIP DOS PONTOS DO GRÁFICO
-// ══════════════════════════════════════════
-function showChartTip(evt, idx) {
-  const data = window._chartPointsData && window._chartPointsData[idx];
-  if (!data) return;
-  const tip = document.getElementById('chart-tooltip');
-  if (!tip) return;
-
-  const valFormatted = chartMetric === 'investimento' ? fmtR(data.val) : fmt(data.val);
-  tip.innerHTML = `<div style="font-weight:600;margin-bottom:2px">${fmtDate(data.date)}</div>
-    <div style="display:flex;align-items:center;gap:5px">
-      <span style="width:7px;height:7px;border-radius:50%;background:${data.color};display:inline-block"></span>
-      ${data.series} — ${window._chartMetricLabel}: <strong>${valFormatted}</strong>
-    </div>`;
-  tip.style.display = 'block';
-  positionChartTip(evt);
-}
-
-function handleChartTouch(evt, idx) {
-  evt.preventDefault();
-  evt.stopPropagation();
-  showChartTip(evt, idx);
-  // marca que o tooltip foi aberto por toque, para não fechar imediatamente
-  window._chartTipOpenedAt = Date.now();
-}
-
-function positionChartTip(evt) {
-  const tip = document.getElementById('chart-tooltip');
-  const wrap = document.getElementById('chart-container');
-  if (!tip || !wrap) return;
-  const wrapRect = wrap.getBoundingClientRect();
-  let clientX, clientY;
-  if (evt.touches && evt.touches.length) { clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY; }
-  else { clientX = evt.clientX; clientY = evt.clientY; }
-  const x = clientX - wrapRect.left;
-  const y = clientY - wrapRect.top;
-  const tipWidth = 170;
-  let left = x + 12;
-  if (left + tipWidth > wrapRect.width) left = x - tipWidth - 12;
-  if (left < 0) left = 4;
-  tip.style.left = left + 'px';
-  tip.style.top = Math.max(y - 55, 0) + 'px';
-}
-
-function hideChartTip() {
-  const tip = document.getElementById('chart-tooltip');
-  if (tip) tip.style.display = 'none';
-}
-
-// Fecha o tooltip ao tocar fora do gráfico (necessário no celular, que não tem "mouseleave")
-document.addEventListener('touchstart', function(evt) {
-  const wrap = document.getElementById('chart-container');
-  const tip = document.getElementById('chart-tooltip');
-  if (!wrap || !tip || tip.style.display !== 'block') return;
-  // se o toque foi recém aberto pelo próprio ponto, não fecha nesse mesmo evento
-  if (window._chartTipOpenedAt && Date.now() - window._chartTipOpenedAt < 100) return;
-  if (!wrap.contains(evt.target)) hideChartTip();
-}, { passive: true });
-
-
 function drawChart(reports, showMeta, showGoogle) {
   const container = document.getElementById('chart-container');
   const legend = document.getElementById('chart-legend');
-  if (!reports.length) { container.innerHTML = '<div class="empty">Sem dados suficientes para o gráfico.</div>'; legend.innerHTML=''; const tbl=document.getElementById('chart-table'); if(tbl) tbl.innerHTML=''; return; }
+  if (!reports.length) { container.innerHTML = '<div class="empty">Sem dados suficientes para o gráfico.</div>'; legend.innerHTML=''; return; }
 
   const metaRows = reports.filter(r => r.platform === 'meta').sort((a,b) => a.period_start.localeCompare(b.period_start));
   const googleRows = reports.filter(r => r.platform === 'google').sort((a,b) => a.period_start.localeCompare(b.period_start));
@@ -722,22 +625,33 @@ function drawChart(reports, showMeta, showGoogle) {
     if (chartMetric === 'conversas') return Number(row.conversas ?? row.cliques) || 0;
     return 0;
   }
+  function fmtVal(v) {
+    return chartMetric === 'investimento' ? fmtR(v) : fmt(v);
+  }
 
   const series = [];
   if (showMeta && metaRows.length) series.push({ name: 'Meta Ads', color: '#F26522', rows: metaRows });
   if (showGoogle && googleRows.length) series.push({ name: 'Google Ads', color: '#0C447C', rows: googleRows });
 
-  if (!series.length) { container.innerHTML = '<div class="empty">Sem dados para exibir.</div>'; legend.innerHTML=''; const tbl=document.getElementById('chart-table'); if(tbl) tbl.innerHTML=''; return; }
+  if (!series.length) { container.innerHTML = '<div class="empty">Sem dados para exibir.</div>'; legend.innerHTML=''; return; }
 
-  const W = 680, H = 240, padL = 50, padR = 20, padT = 20, padB = 40;
   const allDates = [...new Set(reports.map(r => r.period_start))].sort();
   const n = allDates.length;
+
+  // Decide quais índices recebem rótulo de valor (evita poluição visual com muitos pontos)
+  const maxLabels = 10;
+  const step = n > maxLabels ? Math.ceil(n / maxLabels) : 1;
+  const labeledIdx = new Set();
+  for (let i = 0; i < n; i += step) labeledIdx.add(i);
+  labeledIdx.add(n - 1);
+
+  const W = Math.max(560, n * 46), H = 260, padL = 46, padR = 20, padT = 34, padB = 40;
   const maxVal = Math.max(1, ...series.flatMap(s => s.rows.map(getVal)));
 
   const xFor = (i) => padL + (n > 1 ? (i / (n-1)) * (W - padL - padR) : (W-padL-padR)/2);
   const yFor = (v) => H - padB - (v / maxVal) * (H - padT - padB);
 
-  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto" xmlns="http://www.w3.org/2000/svg">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:${W}px;height:auto" xmlns="http://www.w3.org/2000/svg">`;
 
   // grid lines
   for (let g = 0; g <= 4; g++) {
@@ -747,47 +661,41 @@ function drawChart(reports, showMeta, showGoogle) {
 
   // x-axis labels (dates)
   allDates.forEach((d, i) => {
-    if (n > 8 && i % Math.ceil(n/8) !== 0) return;
+    if (n > 12 && i % Math.ceil(n/12) !== 0 && i !== n-1) return;
     const x = xFor(i);
     svg += `<text x="${x}" y="${H-14}" font-size="9" fill="#5a7278" text-anchor="middle">${fmtDate(d).slice(0,5)}</text>`;
   });
 
-  let pointIndex = 0;
-  const pointsData = [];
-
-  series.forEach(s => {
+  series.forEach((s, sIdx) => {
     const pts = allDates.map((d, i) => {
       const row = s.rows.find(r => r.period_start === d);
-      return row ? {x: xFor(i), y: yFor(getVal(row)), date: d, val: getVal(row)} : null;
+      return row ? {x: xFor(i), y: yFor(getVal(row)), idx: i, val: getVal(row)} : null;
     }).filter(Boolean);
 
     if (pts.length > 1) {
       const path = pts.map((p,i) => (i===0?'M':'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
       svg += `<path d="${path}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
     }
+
     pts.forEach(p => {
-      const idx = pointIndex++;
-      pointsData.push({ series: s.name, color: s.color, date: p.date, val: p.val });
-      svg += `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${s.color}" style="pointer-events:none"/>`;
-      svg += `<circle cx="${p.x}" cy="${p.y}" r="13" fill="transparent" style="cursor:pointer;touch-action:none"
-        onmouseenter="showChartTip(event,${idx})" onmousemove="positionChartTip(event)" onmouseleave="hideChartTip()"
-        ontouchstart="handleChartTouch(event,${idx})" data-point-idx="${idx}"/>`;
+      svg += `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${s.color}"/>`;
+      if (labeledIdx.has(p.idx)) {
+        // segunda série (Google) recebe rótulo mais abaixo do ponto para não colidir com a primeira
+        const labelY = sIdx === 0 ? p.y - 10 : p.y + 16;
+        svg += `<text x="${p.x}" y="${labelY}" font-size="10" font-weight="600" fill="${s.color}" text-anchor="middle">${fmtVal(p.val)}</text>`;
+      }
     });
   });
 
   svg += `</svg>`;
-  container.innerHTML = svg + '<div class="chart-tooltip" id="chart-tooltip"></div>';
-  window._chartPointsData = pointsData;
-  window._chartMetricLabel = {investimento:'Investimento', alcance:'Alcance', conversas:'Conversas/Cliques'}[chartMetric];
-  renderChartTable();
+  container.innerHTML = svg;
 
   legend.innerHTML = series.map(s =>
     `<div class="chart-legend-item"><div class="chart-legend-dot" style="background:${s.color}"></div>${s.name}</div>`
   ).join('');
 }
-// ══════════════════════════════════════════
-// ANÁLISE ESTRUTURADA E AÇÕES
-// ══════════════════════════════════════════
+
+
 function periodKey() {
   return `${activeClientId}__${rangeStart}_${rangeEnd}`;
 }
