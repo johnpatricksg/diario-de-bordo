@@ -86,6 +86,8 @@
   .chart-metric-btn.active { background:var(--orange-light); color:var(--orange); border-color:var(--orange-mid); font-weight:600; }
   .chart-svg-wrap { width:100%; overflow-x:auto; }
   .chart-legend { display:flex; gap:14px; margin-top:8px; font-size:11px; color:var(--text2); }
+  .chart-svg-wrap { position: relative; }
+  .chart-tooltip { display:none; position:absolute; background:var(--dark); color:#fff; font-size:11px; padding:8px 10px; border-radius:6px; pointer-events:none; z-index:20; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.25); line-height:1.5; }
   .chart-legend-item { display:flex; align-items:center; gap:5px; }
   .chart-legend-dot { width:8px; height:8px; border-radius:50%; }
 
@@ -611,6 +613,42 @@ function setChartMetric(k) {
   renderChart(currentReports, showMeta, showGoogle);
 }
 
+// ══════════════════════════════════════════
+// TOOLTIP DOS PONTOS DO GRÁFICO
+// ══════════════════════════════════════════
+function showChartTip(evt, idx) {
+  const data = window._chartPointsData && window._chartPointsData[idx];
+  if (!data) return;
+  const tip = document.getElementById('chart-tooltip');
+  if (!tip) return;
+
+  const valFormatted = chartMetric === 'investimento' ? fmtR(data.val) : fmt(data.val);
+  tip.innerHTML = `<div style="font-weight:600;margin-bottom:2px">${fmtDate(data.date)}</div>
+    <div style="display:flex;align-items:center;gap:5px">
+      <span style="width:7px;height:7px;border-radius:50%;background:${data.color};display:inline-block"></span>
+      ${data.series} — ${window._chartMetricLabel}: <strong>${valFormatted}</strong>
+    </div>`;
+  tip.style.display = 'block';
+  positionChartTip(evt);
+}
+
+function positionChartTip(evt) {
+  const tip = document.getElementById('chart-tooltip');
+  const wrap = document.getElementById('chart-container');
+  if (!tip || !wrap) return;
+  const wrapRect = wrap.getBoundingClientRect();
+  const x = (evt.clientX || (evt.touches && evt.touches[0].clientX) || 0) - wrapRect.left;
+  const y = (evt.clientY || (evt.touches && evt.touches[0].clientY) || 0) - wrapRect.top;
+  tip.style.left = Math.min(x + 12, wrapRect.width - 160) + 'px';
+  tip.style.top = Math.max(y - 50, 0) + 'px';
+}
+
+function hideChartTip() {
+  const tip = document.getElementById('chart-tooltip');
+  if (tip) tip.style.display = 'none';
+}
+
+
 function drawChart(reports, showMeta, showGoogle) {
   const container = document.getElementById('chart-container');
   const legend = document.getElementById('chart-legend');
@@ -655,21 +693,35 @@ function drawChart(reports, showMeta, showGoogle) {
     svg += `<text x="${x}" y="${H-14}" font-size="9" fill="#5a7278" text-anchor="middle">${fmtDate(d).slice(0,5)}</text>`;
   });
 
+  let pointIndex = 0;
+  const pointsData = [];
+
   series.forEach(s => {
     const pts = allDates.map((d, i) => {
       const row = s.rows.find(r => r.period_start === d);
-      return row ? {x: xFor(i), y: yFor(getVal(row))} : null;
+      return row ? {x: xFor(i), y: yFor(getVal(row)), date: d, val: getVal(row)} : null;
     }).filter(Boolean);
 
     if (pts.length > 1) {
       const path = pts.map((p,i) => (i===0?'M':'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
       svg += `<path d="${path}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
     }
-    pts.forEach(p => { svg += `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${s.color}"/>`; });
+    pts.forEach(p => {
+      const idx = pointIndex++;
+      pointsData.push({ series: s.name, color: s.color, date: p.date, val: p.val });
+      svg += `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="${s.color}" style="cursor:pointer"
+        onmouseenter="showChartTip(event,${idx})" onmousemove="positionChartTip(event)" onmouseleave="hideChartTip()"
+        ontouchstart="showChartTip(event,${idx})" data-point-idx="${idx}"/>`;
+      svg += `<circle cx="${p.x}" cy="${p.y}" r="10" fill="transparent" style="cursor:pointer"
+        onmouseenter="showChartTip(event,${idx})" onmousemove="positionChartTip(event)" onmouseleave="hideChartTip()"
+        ontouchstart="showChartTip(event,${idx})" data-point-idx="${idx}"/>`;
+    });
   });
 
   svg += `</svg>`;
-  container.innerHTML = svg;
+  container.innerHTML = svg + '<div class="chart-tooltip" id="chart-tooltip"></div>';
+  window._chartPointsData = pointsData;
+  window._chartMetricLabel = {investimento:'Investimento', alcance:'Alcance', conversas:'Conversas/Cliques'}[chartMetric];
 
   legend.innerHTML = series.map(s =>
     `<div class="chart-legend-item"><div class="chart-legend-dot" style="background:${s.color}"></div>${s.name}</div>`
