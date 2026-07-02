@@ -512,6 +512,12 @@ function renderChart(reports, showMeta, showGoogle) {
     {k:'alcance', l:'Alcance'},
     {k:'conversas', l:'Conversas/Cliques'},
   ];
+  const hasSeguidores = reports.some(r => r.seguidores != null);
+  if (hasSeguidores) metrics.push({k:'seguidores', l:'Seguidores'});
+
+  // Se a métrica ativa não existir mais neste conjunto de dados, volta para investimento
+  if (chartMetric === 'seguidores' && !hasSeguidores) chartMetric = 'investimento';
+
   controls.innerHTML = metrics.map(m =>
     `<div class="chart-metric-btn ${chartMetric===m.k?'active':''}" onclick="setChartMetric('${m.k}')">${m.l}</div>`
   ).join('');
@@ -541,6 +547,7 @@ function drawChart(reports, showMeta, showGoogle) {
     if (chartMetric === 'investimento') return Number(row.investimento) || 0;
     if (chartMetric === 'alcance') return Number(row.alcance) || 0;
     if (chartMetric === 'conversas') return Number(row.conversas ?? row.cliques) || 0;
+    if (chartMetric === 'seguidores') return Number(row.seguidores) || 0;
     return 0;
   }
   function fmtVal(v) {
@@ -549,7 +556,7 @@ function drawChart(reports, showMeta, showGoogle) {
 
   const series = [];
   if (showMeta && metaRows.length) series.push({ name: 'Meta Ads', color: '#F26522', rows: metaRows });
-  if (showGoogle && googleRows.length) series.push({ name: 'Google Ads', color: '#0C447C', rows: googleRows });
+  if (showGoogle && googleRows.length && chartMetric !== 'seguidores') series.push({ name: 'Google Ads', color: '#0C447C', rows: googleRows });
 
   if (!series.length) { container.innerHTML = '<div class="empty">Sem dados para exibir.</div>'; legend.innerHTML=''; return; }
 

@@ -594,6 +594,12 @@ function renderChart(reports, showMeta, showGoogle) {
     {k:'alcance', l:'Alcance'},
     {k:'conversas', l:'Conversas/Cliques'},
   ];
+  const hasSeguidores = reports.some(r => r.seguidores != null);
+  if (hasSeguidores) metrics.push({k:'seguidores', l:'Seguidores'});
+
+  // Se a métrica ativa não existir mais neste conjunto de dados, volta para investimento
+  if (chartMetric === 'seguidores' && !hasSeguidores) chartMetric = 'investimento';
+
   controls.innerHTML = metrics.map(m =>
     `<div class="chart-metric-btn ${chartMetric===m.k?'active':''}" onclick="setChartMetric('${m.k}')">${m.l}</div>`
   ).join('');
@@ -623,6 +629,7 @@ function drawChart(reports, showMeta, showGoogle) {
     if (chartMetric === 'investimento') return Number(row.investimento) || 0;
     if (chartMetric === 'alcance') return Number(row.alcance) || 0;
     if (chartMetric === 'conversas') return Number(row.conversas ?? row.cliques) || 0;
+    if (chartMetric === 'seguidores') return Number(row.seguidores) || 0;
     return 0;
   }
   function fmtVal(v) {
@@ -631,7 +638,7 @@ function drawChart(reports, showMeta, showGoogle) {
 
   const series = [];
   if (showMeta && metaRows.length) series.push({ name: 'Meta Ads', color: '#F26522', rows: metaRows });
-  if (showGoogle && googleRows.length) series.push({ name: 'Google Ads', color: '#0C447C', rows: googleRows });
+  if (showGoogle && googleRows.length && chartMetric !== 'seguidores') series.push({ name: 'Google Ads', color: '#0C447C', rows: googleRows });
 
   if (!series.length) { container.innerHTML = '<div class="empty">Sem dados para exibir.</div>'; legend.innerHTML=''; return; }
 
@@ -994,9 +1001,11 @@ function handleCsvFileSelect(input) {
     const parsed = platform === 'google' ? parseGoogleCSV(e.target.result) : parseCSV(e.target.result);
     pendingCsvRows = parsed;
     const days = new Set(parsed.map(r => r['Dia']).filter(Boolean));
+    const hasFollowerCol = parsed.some(r => r['Seguidores no Instagram'] !== undefined && r['Seguidores no Instagram'] !== '');
     document.getElementById('csv-preview').innerHTML =
       `<strong>${file.name}</strong><br>${parsed.length} linhas · ${days.size} dias identificados` +
-      (days.size ? `<br>Período: ${[...days].sort()[0]} até ${[...days].sort().slice(-1)[0]}` : '');
+      (days.size ? `<br>Período: ${[...days].sort()[0]} até ${[...days].sort().slice(-1)[0]}` : '') +
+      (hasFollowerCol ? `<br>✅ Coluna "Seguidores no Instagram" detectada — será somada automaticamente.` : '');
 
     if (platform === 'meta') {
       const types = detectResultTypes(parsed);
@@ -1159,6 +1168,13 @@ function aggregateMetaCsvByDayMapped(rows, mapping) {
       byDay[day][target] += resultado;
       byDay[day].has[target] = true;
     }
+
+    // Coluna dedicada de ganho de seguidores do Instagram — separada do sistema
+    // "Tipo de resultado"/"Resultados", o Meta a inclui como coluna própria.
+    if (r['Seguidores no Instagram'] !== undefined && r['Seguidores no Instagram'] !== '') {
+      byDay[day].seguidores += parseFloat(r['Seguidores no Instagram']) || 0;
+      byDay[day].has.seguidores = true;
+    }
   });
   return byDay;
 }
@@ -1189,7 +1205,10 @@ async function submitEditClient() {
   if (document.getElementById('em-platform-meta').checked) platforms.push('meta');
   if (document.getElementById('em-platform-google').checked) platforms.push('google');
 
+  const newName = document.getElementById('em-name').value.trim();
+
   const updates = {
+    name: newName || c.name,
     objective: document.getElementById('em-objective').value.trim(),
     budget_meta: Number((document.getElementById('em-budget-meta').value || '0').replace(',','.')),
     budget_google: Number((document.getElementById('em-budget-google').value || '0').replace(',','.')),
@@ -1347,7 +1366,7 @@ function copyReportPreview() {
 <div class="modal-overlay" id="client-edit-modal">
   <div class="modal">
     <h3>Editar cliente</h3>
-    <div class="form-field" style="margin-bottom:10px"><label>Nome</label><input type="text" id="em-name" disabled style="opacity:.6" /></div>
+    <div class="form-field" style="margin-bottom:10px"><label>Nome (como aparece nos relatórios)</label><input type="text" id="em-name" /></div>
     <div class="form-field" style="margin-bottom:10px"><label>Objetivo / Estratégia atual</label><textarea id="em-objective" placeholder="Ex: Aumentar leads no WhatsApp para fechar consultas."></textarea></div>
     <div class="form-row">
       <div class="form-field"><label>Orçamento Meta (R$/mês)</label><input type="text" id="em-budget-meta" /></div>
