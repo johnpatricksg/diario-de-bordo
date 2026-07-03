@@ -1002,10 +1002,12 @@ function handleCsvFileSelect(input) {
     pendingCsvRows = parsed;
     const days = new Set(parsed.map(r => r['Dia']).filter(Boolean));
     const hasFollowerCol = parsed.some(r => r['Seguidores no Instagram'] !== undefined && r['Seguidores no Instagram'] !== '');
+    const directCols = platform === 'meta' ? Object.keys(DIRECT_META_COLUMNS).filter(c => parsed.some(r => r[c] !== undefined && r[c] !== '')) : [];
     document.getElementById('csv-preview').innerHTML =
       `<strong>${file.name}</strong><br>${parsed.length} linhas · ${days.size} dias identificados` +
       (days.size ? `<br>Período: ${[...days].sort()[0]} até ${[...days].sort().slice(-1)[0]}` : '') +
-      (hasFollowerCol ? `<br>✅ Coluna "Seguidores no Instagram" detectada — será somada automaticamente.` : '');
+      (hasFollowerCol ? `<br>✅ Coluna "Seguidores no Instagram" detectada — será somada automaticamente.` : '') +
+      (directCols.length ? `<br>✅ ${directCols.map(c => `"${c}"`).join(', ')} detectada(s) — será(ão) somada(s) automaticamente.` : '');
 
     if (platform === 'meta') {
       const types = detectResultTypes(parsed);
@@ -1151,6 +1153,16 @@ function renderTypeMappingUI(types) {
 }
 
 // Agrega linhas do CSV por dia, usando o mapeamento confirmado pelo usuário
+// Colunas diretas que alguns exports do Meta trazem prontas (nível de conta),
+// em vez do sistema genérico "Tipo de resultado"/"Resultados" (nível de campanha/conjunto).
+const DIRECT_META_COLUMNS = {
+  'Conversas por mensagem iniciadas': 'conversas',
+  'Conversas iniciadas por mensagem': 'conversas',
+  'Visitas ao perfil do Instagram': 'visitas',
+  'Cliques no link': 'cliques',
+  'Novos seguidores da Página': 'seguidores',
+};
+
 function aggregateMetaCsvByDayMapped(rows, mapping) {
   const byDay = {};
   rows.forEach(r => {
@@ -1161,6 +1173,7 @@ function aggregateMetaCsvByDayMapped(rows, mapping) {
     byDay[day].alcance += parseFloat(r['Alcance']) || 0;
     byDay[day].investimento += parseFloat(r['Valor usado (BRL)']) || 0;
 
+    // Formato com "Tipo de resultado" + "Resultados" (nível campanha/conjunto de anúncios)
     const tipo = r['Tipo de resultado'];
     const target = mapping[tipo];
     if (target && target !== 'ignorar') {
@@ -1168,6 +1181,15 @@ function aggregateMetaCsvByDayMapped(rows, mapping) {
       byDay[day][target] += resultado;
       byDay[day].has[target] = true;
     }
+
+    // Formato com colunas diretas nomeadas (nível de conta) — lido independente do mapeamento acima
+    Object.keys(DIRECT_META_COLUMNS).forEach(colName => {
+      if (r[colName] !== undefined && r[colName] !== '') {
+        const field = DIRECT_META_COLUMNS[colName];
+        byDay[day][field] += parseFloat(r[colName]) || 0;
+        byDay[day].has[field] = true;
+      }
+    });
 
     // Coluna dedicada de ganho de seguidores do Instagram — separada do sistema
     // "Tipo de resultado"/"Resultados", o Meta a inclui como coluna própria.
