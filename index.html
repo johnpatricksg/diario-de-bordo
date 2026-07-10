@@ -1173,27 +1173,33 @@ function aggregateMetaCsvByDayMapped(rows, mapping) {
     byDay[day].alcance += parseFloat(r['Alcance']) || 0;
     byDay[day].investimento += parseFloat(r['Valor usado (BRL)']) || 0;
 
-    // Formato com "Tipo de resultado" + "Resultados" (nível campanha/conjunto de anúncios)
-    const tipo = r['Tipo de resultado'];
-    const target = mapping[tipo];
-    if (target && target !== 'ignorar') {
-      const resultado = parseFloat(r['Resultados']) || 0;
-      byDay[day][target] += resultado;
-      byDay[day].has[target] = true;
-    }
-
-    // Formato com colunas diretas nomeadas (nível de conta) — lido independente do mapeamento acima
+    // 1º) Colunas diretas nomeadas (nível de conta) — têm PRIORIDADE.
+    // Marcamos quais campos já foram preenchidos por elas nesta linha, para
+    // não recontar o mesmo campo via "Tipo de resultado"/"Resultados" abaixo.
+    const preenchidoPorColunaDireta = {};
     Object.keys(DIRECT_META_COLUMNS).forEach(colName => {
       if (r[colName] !== undefined && r[colName] !== '') {
         const field = DIRECT_META_COLUMNS[colName];
         byDay[day][field] += parseFloat(r[colName]) || 0;
         byDay[day].has[field] = true;
+        preenchidoPorColunaDireta[field] = true;
       }
     });
 
+    // 2º) Formato "Tipo de resultado" + "Resultados" (nível campanha/conjunto).
+    // Só conta se o MESMO campo ainda não veio de uma coluna direta nesta linha,
+    // evitando dupla contagem quando o export traz as duas coisas juntas.
+    const tipo = r['Tipo de resultado'];
+    const target = mapping[tipo];
+    if (target && target !== 'ignorar' && !preenchidoPorColunaDireta[target]) {
+      const resultado = parseFloat(r['Resultados']) || 0;
+      byDay[day][target] += resultado;
+      byDay[day].has[target] = true;
+    }
+
     // Coluna dedicada de ganho de seguidores do Instagram — separada do sistema
     // "Tipo de resultado"/"Resultados", o Meta a inclui como coluna própria.
-    if (r['Seguidores no Instagram'] !== undefined && r['Seguidores no Instagram'] !== '') {
+    if (r['Seguidores no Instagram'] !== undefined && r['Seguidores no Instagram'] !== '' && !preenchidoPorColunaDireta['seguidores']) {
       byDay[day].seguidores += parseFloat(r['Seguidores no Instagram']) || 0;
       byDay[day].has.seguidores = true;
     }
