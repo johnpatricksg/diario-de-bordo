@@ -1171,7 +1171,7 @@ function aggregateMetaCsvByDayMapped(rows, mapping) {
     if (!byDay[day]) byDay[day] = { alcance: 0, investimento: 0, conversas: 0, visitas: 0, seguidores: 0, cliques: 0, has: {} };
 
     byDay[day].alcance += parseFloat(r['Alcance']) || 0;
-    byDay[day].investimento += parseFloat(r['Valor usado (BRL)']) || 0;
+    byDay[day].investimento += parseFloat(r['Valor gasto (BRL)'] || r['Valor usado (BRL)']) || 0;
 
     // 1º) Colunas diretas nomeadas (nível de conta) — têm PRIORIDADE.
     // Marcamos quais campos já foram preenchidos por elas nesta linha, para
