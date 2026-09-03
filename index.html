@@ -1090,6 +1090,57 @@ function copyClientLink() {
 // ══════════════════════════════════════════
 // CARREGAMENTO E INICIALIZAÇÃO
 // ══════════════════════════════════════════
+
+// ══════════════════════════════════════════
+// KPIs AUTOMÁTICOS (sem gravar nada no banco)
+//
+// A automação NÃO escreve na pilar_reports — essa tabela guarda só o
+// que foi lançado à mão / importado por CSV. Quando o cliente tem
+// automação ativa, montamos aqui, em memória, "linhas virtuais" a
+// partir da tabela de insights dele, e o resto do painel usa isso
+// como se fosse um relatório normal.
+// ══════════════════════════════════════════
+function buildAutoReports(adInsights, clientId) {
+  const byDate = {};
+  (adInsights || []).forEach(r => {
+    const d = r.date;
+    if (!d) return;
+    if (!byDate[d]) {
+      byDate[d] = {
+        client_id: clientId, platform: 'meta',
+        period_start: d, period_end: d,
+        investimento: 0, impressoes: 0, cliques: 0, conversas: 0, alcance: 0,
+        visitas: null, seguidores: null, cpc: null, obs: null,
+        _auto: true
+      };
+    }
+    byDate[d].investimento += Number(r.spend) || 0;
+    byDate[d].impressoes   += Number(r.impressions) || 0;
+    byDate[d].cliques      += Number(r.clicks) || 0;
+    byDate[d].conversas    += Number(r.results) || 0;
+    byDate[d].alcance      += Number(r.reach) || 0;
+  });
+  return Object.values(byDate).map(r => {
+    r.investimento = Math.round(r.investimento * 100) / 100;
+    r.cpc = r.cliques > 0 ? Math.round((r.investimento / r.cliques) * 100) / 100 : null;
+    return r;
+  });
+}
+
+// Junta o manual com o automático sem somar em dobro.
+// Regra: uma linha manual de Meta cujo período inteiro já está coberto
+// pela automação dá lugar à automática. Todo o resto é preservado —
+// inclusive Google e períodos que a automação não alcança.
+function mergeReports(manuais, automaticos) {
+  if (!automaticos || !automaticos.length) return manuais;
+  const cobertas = new Set(automaticos.map(r => r.period_start));
+  const preservados = (manuais || []).filter(r => {
+    if (r.platform !== 'meta') return true;
+    return !(cobertas.has(r.period_start) && cobertas.has(r.period_end));
+  });
+  return preservados.concat(automaticos);
+}
+
 async function loadAndRender() {
   const c = getActiveClient();
   if (!c) return;
@@ -1114,6 +1165,7 @@ async function loadAndRender() {
   if (autoCfg) {
     currentLeads = await loadLeads(autoCfg.leads, rangeStart, rangeEnd);
     currentAdInsights = await loadAdInsights(autoCfg.ads, rangeStart, rangeEnd);
+    currentReports = mergeReports(currentReports, buildAutoReports(currentAdInsights, activeClientId));
   } else {
     currentLeads = [];
     currentAdInsights = [];
