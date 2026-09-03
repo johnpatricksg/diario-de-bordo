@@ -1663,9 +1663,15 @@ async function sendPilarzinhoMessage() {
         range_end: rangeEnd
       })
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
+    const raw = await res.text();
+    let data = null;
+    try { data = raw ? JSON.parse(raw) : null; } catch (parseErr) { data = null; }
     document.getElementById('pz-loading')?.remove();
+    if (!res.ok || !data) {
+      console.error('Erro Pilarzinho: resposta inválida do n8n (status ' + res.status + ')', raw);
+      pzAddMessage('assistant', 'O n8n respondeu, mas sem um resultado válido (o workflow deve ter dado erro no meio do caminho — confira a aba Executions no n8n).');
+      return;
+    }
     pzAddMessage('assistant', data.reply || 'Não consegui montar uma resposta agora. Tenta de novo em instantes.');
   } catch (e) {
     document.getElementById('pz-loading')?.remove();
