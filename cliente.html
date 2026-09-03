@@ -155,6 +155,7 @@
 
   <div class="range-bar" id="range-bar"></div>
   <div class="platform-tabs" id="platform-tabs"></div>
+  <div class="platform-tabs" id="section-tabs"></div>
   <div id="content"><div class="empty">Carregando dados...</div></div>
 </main>
 
@@ -168,6 +169,15 @@
 const SUPA_URL = "https://ppxeuzibuvakcnnqkevp.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBweGV1emlidXZha2NubnFrZXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyOTU4NDEsImV4cCI6MjA5Mjg3MTg0MX0.h8e9Wj5Gbjv97dk3-4dqOxN9JAR1xZw9ggrVHMm94W0";
 const IS_ADMIN = false;
+
+// ══════════════════════════════════════════
+// AUTOMAÇÃO (LEADS + INSIGHTS VIA N8N)
+// A lista de clientes com automação ativa não fica mais fixa aqui no HTML —
+// ela vem da tabela pilar_automation_config no Supabase (ver loadAutomationConfig
+// mais abaixo e AUTOMATION_CONFIG em ESTADO). Para ligar a automação de um cliente
+// novo, basta inserir uma linha nessa tabela — não precisa editar nem reimplantar
+// este arquivo.
+// ══════════════════════════════════════════
 
 const METRIC_INFO = {
   alcance: "Número de pessoas diferentes que viram o anúncio no período.",
@@ -216,6 +226,42 @@ async function loadAllClients() {
 async function loadReports(clientId, startDate, endDate) {
   return await supaGet(`pilar_reports?client_id=eq.${encodeURIComponent(clientId)}&period_start=gte.${startDate}&period_end=lte.${endDate}&select=*&order=period_start.asc`);
 }
+
+async function loadLeads(tableName, startDate, endDate) {
+  if (!tableName) return [];
+  try {
+    return await supaGet(`${tableName}?select=*&created_at=gte.${startDate}T00:00:00&created_at=lte.${endDate}T23:59:59&order=created_at.desc`);
+  } catch(e) { console.error('Erro ao carregar leads:', e); return []; }
+}
+
+async function loadAdInsights(tableName, startDate, endDate) {
+  if (!tableName) return [];
+  try {
+    return await supaGet(`${tableName}?select=*&date=gte.${startDate}&date=lte.${endDate}&order=date.asc`);
+  } catch(e) { console.error('Erro ao carregar insights de anúncios:', e); return []; }
+}
+
+async function loadAutomationConfig() {
+  try {
+    const rows = await supaGet('pilar_automation_config?select=*&active=eq.true');
+    const map = {};
+    rows.forEach(r => { map[r.client_id] = { leads: r.leads_table, ads: r.ads_table }; });
+    return map;
+  } catch(e) { console.error('Erro ao carregar config de automação:', e); return {}; }
+}
+
+async function loadOrganicSummary(clientId) {
+  try {
+    const rows = await supaGet(`pilar_organic_summary?client_id=eq.${encodeURIComponent(clientId)}&select=*&limit=1`);
+    return rows[0] || null;
+  } catch(e) { console.error('Erro ao carregar resumo orgânico:', e); return null; }
+}
+
+async function loadOrganicPosts(clientId) {
+  try {
+    return await supaGet(`pilar_organic_posts?client_id=eq.${encodeURIComponent(clientId)}&select=*&order=timestamp.desc&limit=12`);
+  } catch(e) { console.error('Erro ao carregar posts orgânicos:', e); return []; }
+}
 // ══════════════════════════════════════════
 // ESTADO
 // ══════════════════════════════════════════
@@ -226,6 +272,12 @@ let activePreset = 'week';  // 'week' | 'month' | '4weeks' | 'custom'
 let rangeStart = null;
 let rangeEnd = null;
 let currentReports = [];
+let currentLeads = [];
+let currentAdInsights = [];
+let AUTOMATION_CONFIG = {}; // carregado uma vez no init(), a partir de pilar_automation_config
+let currentOrganicSummary = null;
+let currentOrganicPosts = [];
+let activeSection = 'pago';
 
 const fmt = n => (n != null && !isNaN(n)) ? Number(n).toLocaleString('pt-BR') : '—';
 const fmtR = n => (n != null && !isNaN(n)) ? 'R$ ' + (Math.round(n*100)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
@@ -295,6 +347,57 @@ function renderRangeBar() {
   el.innerHTML = html;
 }
 
+
+// ══════════════════════════════════════════
+// KPIs AUTOMÁTICOS (sem gravar nada no banco)
+//
+// A automação NÃO escreve na pilar_reports — essa tabela guarda só o
+// que foi lançado à mão / importado por CSV. Quando o cliente tem
+// automação ativa, montamos aqui, em memória, "linhas virtuais" a
+// partir da tabela de insights dele, e o resto do painel usa isso
+// como se fosse um relatório normal.
+// ══════════════════════════════════════════
+function buildAutoReports(adInsights, clientId) {
+  const byDate = {};
+  (adInsights || []).forEach(r => {
+    const d = r.date;
+    if (!d) return;
+    if (!byDate[d]) {
+      byDate[d] = {
+        client_id: clientId, platform: 'meta',
+        period_start: d, period_end: d,
+        investimento: 0, impressoes: 0, cliques: 0, conversas: 0, alcance: 0,
+        visitas: null, seguidores: null, cpc: null, obs: null,
+        _auto: true
+      };
+    }
+    byDate[d].investimento += Number(r.spend) || 0;
+    byDate[d].impressoes   += Number(r.impressions) || 0;
+    byDate[d].cliques      += Number(r.clicks) || 0;
+    byDate[d].conversas    += Number(r.results) || 0;
+    byDate[d].alcance      += Number(r.reach) || 0;
+  });
+  return Object.values(byDate).map(r => {
+    r.investimento = Math.round(r.investimento * 100) / 100;
+    r.cpc = r.cliques > 0 ? Math.round((r.investimento / r.cliques) * 100) / 100 : null;
+    return r;
+  });
+}
+
+// Junta o manual com o automático sem somar em dobro.
+// Regra: uma linha manual de Meta cujo período inteiro já está coberto
+// pela automação dá lugar à automática. Todo o resto é preservado —
+// inclusive Google e períodos que a automação não alcança.
+function mergeReports(manuais, automaticos) {
+  if (!automaticos || !automaticos.length) return manuais;
+  const cobertas = new Set(automaticos.map(r => r.period_start));
+  const preservados = (manuais || []).filter(r => {
+    if (r.platform !== 'meta') return true;
+    return !(cobertas.has(r.period_start) && cobertas.has(r.period_end));
+  });
+  return preservados.concat(automaticos);
+}
+
 async function loadAndRender() {
   const c = getActiveClient();
   if (!c) return;
@@ -313,6 +416,26 @@ async function loadAndRender() {
     console.error(e);
     currentReports = [];
   }
+
+  const autoCfg = AUTOMATION_CONFIG[activeClientId];
+  if (autoCfg) {
+    currentLeads = await loadLeads(autoCfg.leads, rangeStart, rangeEnd);
+    currentAdInsights = await loadAdInsights(autoCfg.ads, rangeStart, rangeEnd);
+    currentReports = mergeReports(currentReports, buildAutoReports(currentAdInsights, activeClientId));
+  } else {
+    currentLeads = [];
+    currentAdInsights = [];
+  }
+
+  if (c.instagram_handle) {
+    currentOrganicSummary = await loadOrganicSummary(activeClientId);
+    currentOrganicPosts = await loadOrganicPosts(activeClientId);
+  } else {
+    currentOrganicSummary = null;
+    currentOrganicPosts = [];
+    activeSection = 'pago';
+  }
+
   renderContent();
 }
 
@@ -357,6 +480,12 @@ function renderContent() {
   const c = getActiveClient();
   if (!c) { document.getElementById('content').innerHTML = '<div class="empty">Selecione um cliente.</div>'; return; }
 
+  renderSectionTabs(c);
+  if (activeSection === 'organico' && c.instagram_handle) {
+    renderOrganicContent(c);
+    return;
+  }
+
   const reports = currentReports;
   const hasMeta = (c.platforms||[]).includes('meta');
   const hasGoogle = (c.platforms||[]).includes('google');
@@ -372,6 +501,10 @@ function renderContent() {
   const totalInvest = investMeta + investGoogle;
   const pct = totalOrc > 0 ? Math.min(Math.round((totalInvest/totalOrc)*100), 100) : 0;
 
+  const autoCfg = AUTOMATION_CONFIG[c.id];
+  const agendamentos = autoCfg ? currentLeads.filter(l => l.etapa_lead === 'A').length : 0;
+  const custoPorAgendamento = (autoCfg && agendamentos > 0) ? totalInvest/agendamentos : null;
+
   let html = '';
 
   if (!c.active) {
@@ -385,6 +518,8 @@ function renderContent() {
       <div class="kpi"><div class="kpi-l">Orçamento mensal</div><div class="kpi-v">${fmtR(totalOrc)}</div></div>
       <div class="kpi"><div class="kpi-l">Investido no período</div><div class="kpi-v">${fmtR(totalInvest)}</div></div>
       <div class="kpi"><div class="kpi-l">Relatórios no período</div><div class="kpi-v">${reports.length}</div></div>
+      ${autoCfg ? `<div class="kpi"><div class="kpi-l">Agendamentos</div><div class="kpi-v">${fmt(agendamentos)}</div></div>
+      <div class="kpi"><div class="kpi-l">Custo/agendamento</div><div class="kpi-v">${fmtR(custoPorAgendamento)}</div></div>` : ''}
     </div>
     <div class="budget-bar-wrap"><div class="budget-bar" style="width:${pct}%"></div></div>
   </div>`;
@@ -426,6 +561,12 @@ function renderContent() {
     } else {
       html += `<div class="card"><div class="card-title"><span class="platform-badge badge-google">Google Ads</span></div><div class="empty">Sem relatórios de Google Ads neste período.</div></div>`;
     }
+  }
+
+  // Top criativos + Contatos (automação n8n)
+  if (autoCfg) {
+    html += renderTopCriativos(currentAdInsights);
+    html += renderContatos(currentLeads);
   }
 
   // Gráfico de evolução
@@ -499,6 +640,124 @@ function escapeHtml(str) {
 
 function metricBox(label, value, tipText) {
   return `<div class="metric"><div class="metric-label">${label}${tip(tipText)}</div><div class="metric-value">${value}</div></div>`;
+}
+
+// ══════════════════════════════════════════
+// TOP CRIATIVOS + CONTATOS (dados vindos do n8n)
+// ══════════════════════════════════════════
+const STATUS_LABELS = {
+  L: { label: 'Lead', bg: 'var(--bg2)', color: 'var(--text2)' },
+  A: { label: 'Agendado', bg: 'var(--teal-light)', color: '#085041' }
+};
+
+function renderTopCriativos(adInsights) {
+  if (!adInsights || !adInsights.length) return '';
+  const byAd = {};
+  adInsights.forEach(r => {
+    const key = r.ad_id || r.ad_name || 'sem-id';
+    if (!byAd[key]) byAd[key] = { ad_name: r.ad_name || 'Anúncio sem nome', spend: 0, results: 0, placements: {} };
+    byAd[key].spend += Number(r.spend) || 0;
+    byAd[key].results += Number(r.results) || 0;
+    const p = r.placement || 'Outro';
+    const weight = Number(r.results) || Number(r.impressions) || 0;
+    byAd[key].placements[p] = (byAd[key].placements[p] || 0) + weight;
+  });
+  const ranked = Object.values(byAd).sort((a,b) => b.results - a.results).slice(0, 3);
+  if (!ranked.length) return '';
+
+  let html = `<div class="card"><div class="card-title">Top criativos do período</div><div class="metric-grid">`;
+  ranked.forEach((ad, i) => {
+    const totalPlacement = Object.values(ad.placements).reduce((a,b) => a+b, 0) || 1;
+    const placementBadges = Object.entries(ad.placements)
+      .sort((a,b) => b[1]-a[1])
+      .map(([name,val]) => `<span style="display:inline-block;font-size:10px;background:var(--bg2);color:var(--text2);padding:2px 8px;border-radius:20px;margin:2px 4px 0 0">${name} ${Math.round(val/totalPlacement*100)}%</span>`)
+      .join('');
+    html += `<div class="metric" style="min-width:190px">
+      <div class="metric-label">${i+1}º lugar</div>
+      <div style="font-size:13px;font-weight:600;margin:4px 0;color:var(--text)">${ad.ad_name}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">${fmt(ad.results)} resultados · ${fmtR(ad.spend)}</div>
+      <div>${placementBadges}</div>
+    </div>`;
+  });
+  html += `</div></div>`;
+  return html;
+}
+
+function renderContatos(leads) {
+  if (!leads || !leads.length) return '';
+  let html = `<div class="card"><div class="card-title">Contatos</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed">
+      <thead><tr style="text-align:left;color:var(--text2);font-size:11px">
+        <th style="padding:6px 4px;width:22%">Nome</th>
+        <th style="padding:6px 4px;width:20%">Horário</th>
+        <th style="padding:6px 4px;width:33%">Anúncio</th>
+        <th style="padding:6px 4px;width:25%">Status</th>
+      </tr></thead><tbody>`;
+  leads.slice(0, 30).forEach(l => {
+    const nome = [l.first_name, l.last_name].filter(Boolean).join(' ') || '—';
+    const horario = l.created_at ? new Date(l.created_at).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '—';
+    const anuncio = l.ANUNCIO || '—';
+    const st = STATUS_LABELS[l.etapa_lead] || STATUS_LABELS.L;
+    html += `<tr style="border-top:0.5px solid var(--border)">
+      <td style="padding:7px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome}</td>
+      <td style="padding:7px 4px;color:var(--text2)">${horario}</td>
+      <td style="padding:7px 4px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${anuncio}</td>
+      <td style="padding:7px 4px"><span style="font-size:10px;background:${st.bg};color:${st.color};padding:2px 8px;border-radius:20px">${st.label}</span></td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+function renderSectionTabs(c) {
+  const el = document.getElementById('section-tabs');
+  if (!el) return;
+  if (!c.instagram_handle) { el.innerHTML = ''; activeSection = 'pago'; return; }
+  el.innerHTML = `
+    <div class="ptab ${activeSection==='pago'?'active':''}" onclick="setSection('pago')">Tráfego Pago</div>
+    <div class="ptab ${activeSection==='organico'?'active':''}" onclick="setSection('organico')">Orgânico</div>
+  `;
+}
+
+function setSection(s) { activeSection = s; renderContent(); }
+
+function renderOrganicContent(c) {
+  let html = `<div class="obj-bar"><span class="platform-badge badge-obj">Instagram</span>@${escapeHtml(c.instagram_handle)}</div>`;
+
+  if (!currentOrganicSummary) {
+    html += `<div class="empty">Ainda sem dados orgânicos coletados para este cliente.</div>`;
+    document.getElementById('content').innerHTML = html;
+    return;
+  }
+
+  const s = currentOrganicSummary;
+  const posts = currentOrganicPosts || [];
+  const avgLikes = posts.length ? Math.round(posts.reduce((a,p) => a + (Number(p.like_count)||0), 0) / posts.length) : 0;
+  const avgComments = posts.length ? Math.round(posts.reduce((a,p) => a + (Number(p.comments_count)||0), 0) / posts.length) : 0;
+
+  html += `<div class="card"><div class="card-title">Perfil</div><div class="metric-grid">
+    ${metricBox('Seguidores', fmt(s.followers_count), 'Número total de seguidores da conta no momento da última coleta.')}
+    ${metricBox('Publicações', fmt(s.media_count), 'Total de publicações da conta.')}
+    ${metricBox('Taxa de engajamento', (s.engagement_rate != null ? s.engagement_rate.toFixed(2)+'%' : '—'), 'Média de curtidas + comentários das publicações recentes, sobre o total de seguidores.')}
+    ${metricBox('Média de curtidas', fmt(avgLikes), 'Média de curtidas nas publicações recentes analisadas.')}
+    ${metricBox('Média de comentários', fmt(avgComments), 'Média de comentários nas publicações recentes analisadas.')}
+  </div></div>`;
+
+  if (posts.length) {
+    html += `<div class="card"><div class="card-title">Publicações recentes</div><div class="metric-grid">`;
+    posts.forEach(p => {
+      const data = p.timestamp ? new Date(p.timestamp).toLocaleDateString('pt-BR') : '—';
+      html += `<div class="metric" style="min-width:150px">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${data}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${fmt(p.like_count)} curtidas</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">${fmt(p.comments_count)} comentários</div>
+        ${p.permalink ? `<a href="${p.permalink}" target="_blank" rel="noopener" style="font-size:11px;color:var(--orange)">Ver post ↗</a>` : ''}
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  document.getElementById('content').innerHTML = html;
 }
 // ══════════════════════════════════════════
 // GRÁFICO DE EVOLUÇÃO (SVG VANILLA) — valores visíveis nos pontos
@@ -640,6 +899,7 @@ async function init() {
 
     ALL_CLIENTS = found; // apenas o cliente correspondente ao token
     activeClientId = found[0].id;
+    AUTOMATION_CONFIG = await loadAutomationConfig();
     setPreset('week');
   } catch(e) {
     console.error('Erro ao inicializar:', e);
