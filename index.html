@@ -137,6 +137,36 @@
     .metric-grid { grid-template-columns: repeat(2, 1fr); }
     .form-row { grid-template-columns: 1fr; }
   }
+
+  /* Pilarzinho — mascote/assistente IA (admin only por enquanto, ver PILARZINHO_WEBHOOK_URL) */
+  @keyframes pzbob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  @keyframes pzwave { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-20deg); } }
+  @keyframes pzblink { 0%,88%,100% { transform: scaleY(1); } 92%,95% { transform: scaleY(0.12); } }
+  @keyframes pzbubblefade { 0%,12% { opacity:0; transform: translateY(6px) scale(.92); } 20%,72% { opacity:1; transform: translateY(0) scale(1); } 82%,100% { opacity:0; transform: translateY(6px) scale(.92); } }
+  #pilarzinho-widget { position: fixed; right: 24px; bottom: 24px; width: 74px; z-index: 150; }
+  .pz-mascot { animation: pzbob 2.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center bottom; }
+  .pz-arm { animation: pzwave 1.9s ease-in-out infinite; transform-origin: 135px 145px; }
+  .pz-eyes { animation: pzblink 4.5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  #pilarzinho-launcher { display:block; width:100%; background:none; border:none; padding:0; cursor:pointer; }
+  #pz-greet-bubble { position:absolute; bottom:100%; left:50%; transform:translateX(-50%); margin-bottom:2px; background:var(--bg); border:0.5px solid var(--border2); border-radius:12px; padding:8px 12px; font-size:13px; width:190px; text-align:center; color:var(--text); box-shadow:0 4px 12px rgba(0,0,0,.12); animation: pzbubblefade 6s ease-in-out infinite; }
+  #pz-greet-bubble::after { content:''; position:absolute; bottom:-5px; left:50%; transform:translateX(-50%) rotate(45deg); width:9px; height:9px; background:var(--bg); border-right:0.5px solid var(--border2); border-bottom:0.5px solid var(--border2); }
+  .pz-panel { display:none; flex-direction:column; position:fixed; right:24px; bottom:24px; width:340px; max-height:min(520px,80vh); background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius-lg); box-shadow:0 8px 28px rgba(0,0,0,.18); z-index:160; overflow:hidden; }
+  .pz-panel.open { display:flex; }
+  .pz-panel-header { background:var(--dark); color:#fff; padding:12px 14px; display:flex; align-items:center; gap:10px; }
+  .pz-panel-header .pz-htext { flex:1; }
+  .pz-panel-header .pz-htitle { font-size:14px; font-weight:600; }
+  .pz-panel-header .pz-hsub { font-size:11px; color:rgba(255,255,255,0.65); }
+  .pz-close { background:none; border:none; color:rgba(255,255,255,0.7); font-size:16px; cursor:pointer; padding:2px 4px; }
+  .pz-close:hover { color:#fff; }
+  .pz-messages { flex:1; overflow-y:auto; padding:12px 14px; display:flex; flex-direction:column; gap:8px; min-height:180px; }
+  .pz-msg { font-size:13px; line-height:1.5; padding:8px 11px; border-radius:12px; max-width:85%; white-space:pre-wrap; }
+  .pz-msg-assistant { background:var(--bg2); color:var(--text); align-self:flex-start; border-bottom-left-radius:3px; }
+  .pz-msg-user { background:var(--orange-light); color:#B84C10; align-self:flex-end; border-bottom-right-radius:3px; }
+  .pz-loading { color:var(--text2); font-style:italic; }
+  .pz-input-row { display:flex; gap:8px; padding:10px; border-top:0.5px solid var(--border); }
+  .pz-input-row input { flex:1; min-height:auto; padding:8px 10px; font-size:13px; }
+  .pz-input-row button { background:var(--orange); color:#fff; border:none; border-radius:var(--radius); padding:0 14px; font-size:13px; cursor:pointer; }
+  .pz-input-row button:hover { background:#D4551A; }
 </style>
 </head>
 <body>
@@ -169,6 +199,7 @@
 
   <div class="range-bar" id="range-bar"></div>
   <div class="platform-tabs" id="platform-tabs"></div>
+  <div class="platform-tabs" id="section-tabs"></div>
   <div id="content"><div class="empty">Carregando dados...</div></div>
 </main>
 
@@ -216,6 +247,7 @@
       <div class="form-field"><label>Orçamento Meta (R$/mês)</label><input type="text" id="cm-budget-meta" placeholder="0" /></div>
       <div class="form-field"><label>Orçamento Google (R$/mês)</label><input type="text" id="cm-budget-google" placeholder="0" /></div>
     </div>
+    <div class="form-field" style="margin-bottom:10px"><label>Instagram (@, opcional — ativa métricas orgânicas)</label><input type="text" id="cm-instagram" placeholder="Ex: agenciapilar" /></div>
     <div class="modal-btns">
       <button onclick="closeClientModal()">Cancelar</button>
       <button class="primary" onclick="submitNewClient()">Criar cliente</button>
@@ -230,6 +262,19 @@
 const SUPA_URL = "https://ppxeuzibuvakcnnqkevp.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBweGV1emlidXZha2NubnFrZXZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyOTU4NDEsImV4cCI6MjA5Mjg3MTg0MX0.h8e9Wj5Gbjv97dk3-4dqOxN9JAR1xZw9ggrVHMm94W0";
 const IS_ADMIN = true;
+// Pilarzinho — webhook do workflow n8n (ChatGPT). Estreia só aqui no admin;
+// pra ativar no link público do cliente no futuro, é só reaproveitar o bloco
+// #pilarzinho-widget/#pilarzinho-panel + estas funções em pilar_cliente.html.
+const PILARZINHO_WEBHOOK_URL = "https://n8n.paineldiariodebordo.online/webhook/pilarzinho"; // TODO: colar a URL real depois de ativar o workflow
+
+// ══════════════════════════════════════════
+// AUTOMAÇÃO (LEADS + INSIGHTS VIA N8N)
+// A lista de clientes com automação ativa não fica mais fixa aqui no HTML —
+// ela vem da tabela pilar_automation_config no Supabase (ver loadAutomationConfig
+// mais abaixo e AUTOMATION_CONFIG em ESTADO). Para ligar a automação de um cliente
+// novo, basta inserir uma linha nessa tabela — não precisa editar nem reimplantar
+// este arquivo.
+// ══════════════════════════════════════════
 
 const METRIC_INFO = {
   alcance: "Número de pessoas diferentes que viram o anúncio no período.",
@@ -341,6 +386,42 @@ async function loadAllClients() {
 async function loadReports(clientId, startDate, endDate) {
   return await supaGet(`pilar_reports?client_id=eq.${encodeURIComponent(clientId)}&period_start=gte.${startDate}&period_end=lte.${endDate}&select=*&order=period_start.asc`);
 }
+
+async function loadLeads(tableName, startDate, endDate) {
+  if (!tableName) return [];
+  try {
+    return await supaGet(`${tableName}?select=*&created_at=gte.${startDate}T00:00:00&created_at=lte.${endDate}T23:59:59&order=created_at.desc`);
+  } catch(e) { console.error('Erro ao carregar leads:', e); return []; }
+}
+
+async function loadAdInsights(tableName, startDate, endDate) {
+  if (!tableName) return [];
+  try {
+    return await supaGet(`${tableName}?select=*&date=gte.${startDate}&date=lte.${endDate}&order=date.asc`);
+  } catch(e) { console.error('Erro ao carregar insights de anúncios:', e); return []; }
+}
+
+async function loadAutomationConfig() {
+  try {
+    const rows = await supaGet('pilar_automation_config?select=*&active=eq.true');
+    const map = {};
+    rows.forEach(r => { map[r.client_id] = { leads: r.leads_table, ads: r.ads_table }; });
+    return map;
+  } catch(e) { console.error('Erro ao carregar config de automação:', e); return {}; }
+}
+
+async function loadOrganicSummary(clientId) {
+  try {
+    const rows = await supaGet(`pilar_organic_summary?client_id=eq.${encodeURIComponent(clientId)}&select=*&limit=1`);
+    return rows[0] || null;
+  } catch(e) { console.error('Erro ao carregar resumo orgânico:', e); return null; }
+}
+
+async function loadOrganicPosts(clientId) {
+  try {
+    return await supaGet(`pilar_organic_posts?client_id=eq.${encodeURIComponent(clientId)}&select=*&order=timestamp.desc&limit=12`);
+  } catch(e) { console.error('Erro ao carregar posts orgânicos:', e); return []; }
+}
 // ══════════════════════════════════════════
 // ESTADO
 // ══════════════════════════════════════════
@@ -351,6 +432,12 @@ let activePreset = 'week';  // 'week' | 'month' | '4weeks' | 'custom'
 let rangeStart = null;
 let rangeEnd = null;
 let currentReports = [];
+let currentLeads = [];
+let currentAdInsights = [];
+let AUTOMATION_CONFIG = {}; // carregado uma vez no init(), a partir de pilar_automation_config
+let currentOrganicSummary = null;
+let currentOrganicPosts = [];
+let activeSection = 'pago';
 
 const fmt = n => (n != null && !isNaN(n)) ? Number(n).toLocaleString('pt-BR') : '—';
 const fmtR = n => (n != null && !isNaN(n)) ? 'R$ ' + (Math.round(n*100)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
@@ -412,6 +499,7 @@ function selectClient(id) {
   activeClientId = id;
   activePlatform = 'all';
   setPreset('week');
+  pzResetConversation();
 }
 
 function renderRangeBar() {
@@ -473,6 +561,12 @@ function renderContent() {
   const c = getActiveClient();
   if (!c) { document.getElementById('content').innerHTML = '<div class="empty">Selecione um cliente.</div>'; return; }
 
+  renderSectionTabs(c);
+  if (activeSection === 'organico' && c.instagram_handle) {
+    renderOrganicContent(c);
+    return;
+  }
+
   const reports = currentReports;
   const hasMeta = (c.platforms||[]).includes('meta');
   const hasGoogle = (c.platforms||[]).includes('google');
@@ -488,6 +582,10 @@ function renderContent() {
   const totalInvest = investMeta + investGoogle;
   const pct = totalOrc > 0 ? Math.min(Math.round((totalInvest/totalOrc)*100), 100) : 0;
 
+  const autoCfg = AUTOMATION_CONFIG[c.id];
+  const agendamentos = autoCfg ? currentLeads.filter(l => l.etapa_lead === 'A').length : 0;
+  const custoPorAgendamento = (autoCfg && agendamentos > 0) ? totalInvest/agendamentos : null;
+
   let html = '';
 
   if (!c.active) {
@@ -501,6 +599,8 @@ function renderContent() {
       <div class="kpi"><div class="kpi-l">Orçamento mensal</div><div class="kpi-v">${fmtR(totalOrc)}</div></div>
       <div class="kpi"><div class="kpi-l">Investido no período</div><div class="kpi-v">${fmtR(totalInvest)}</div></div>
       <div class="kpi"><div class="kpi-l">Relatórios no período</div><div class="kpi-v">${reports.length}</div></div>
+      ${autoCfg ? `<div class="kpi"><div class="kpi-l">Agendamentos</div><div class="kpi-v">${fmt(agendamentos)}</div></div>
+      <div class="kpi"><div class="kpi-l">Custo/agendamento</div><div class="kpi-v">${fmtR(custoPorAgendamento)}</div></div>` : ''}
     </div>
     <div class="budget-bar-wrap"><div class="budget-bar" style="width:${pct}%"></div></div>
   </div>`;
@@ -544,6 +644,12 @@ function renderContent() {
     }
   }
 
+  // Top criativos + Contatos (automação n8n)
+  if (autoCfg) {
+    html += renderTopCriativos(currentAdInsights);
+    html += renderContatos(currentLeads);
+  }
+
   // Gráfico de evolução
   html += `<div class="card"><div class="card-title">Evolução no período</div>
     <div class="chart-controls" id="chart-controls"></div>
@@ -581,6 +687,124 @@ function renderContent() {
 
 function metricBox(label, value, tipText) {
   return `<div class="metric"><div class="metric-label">${label}${tip(tipText)}</div><div class="metric-value">${value}</div></div>`;
+}
+
+// ══════════════════════════════════════════
+// TOP CRIATIVOS + CONTATOS (dados vindos do n8n)
+// ══════════════════════════════════════════
+const STATUS_LABELS = {
+  L: { label: 'Lead', bg: 'var(--bg2)', color: 'var(--text2)' },
+  A: { label: 'Agendado', bg: 'var(--teal-light)', color: '#085041' }
+};
+
+function renderTopCriativos(adInsights) {
+  if (!adInsights || !adInsights.length) return '';
+  const byAd = {};
+  adInsights.forEach(r => {
+    const key = r.ad_id || r.ad_name || 'sem-id';
+    if (!byAd[key]) byAd[key] = { ad_name: r.ad_name || 'Anúncio sem nome', spend: 0, results: 0, placements: {} };
+    byAd[key].spend += Number(r.spend) || 0;
+    byAd[key].results += Number(r.results) || 0;
+    const p = r.placement || 'Outro';
+    const weight = Number(r.results) || Number(r.impressions) || 0;
+    byAd[key].placements[p] = (byAd[key].placements[p] || 0) + weight;
+  });
+  const ranked = Object.values(byAd).sort((a,b) => b.results - a.results).slice(0, 3);
+  if (!ranked.length) return '';
+
+  let html = `<div class="card"><div class="card-title">Top criativos do período</div><div class="metric-grid">`;
+  ranked.forEach((ad, i) => {
+    const totalPlacement = Object.values(ad.placements).reduce((a,b) => a+b, 0) || 1;
+    const placementBadges = Object.entries(ad.placements)
+      .sort((a,b) => b[1]-a[1])
+      .map(([name,val]) => `<span style="display:inline-block;font-size:10px;background:var(--bg2);color:var(--text2);padding:2px 8px;border-radius:20px;margin:2px 4px 0 0">${name} ${Math.round(val/totalPlacement*100)}%</span>`)
+      .join('');
+    html += `<div class="metric" style="min-width:190px">
+      <div class="metric-label">${i+1}º lugar</div>
+      <div style="font-size:13px;font-weight:600;margin:4px 0;color:var(--text)">${ad.ad_name}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">${fmt(ad.results)} resultados · ${fmtR(ad.spend)}</div>
+      <div>${placementBadges}</div>
+    </div>`;
+  });
+  html += `</div></div>`;
+  return html;
+}
+
+function renderContatos(leads) {
+  if (!leads || !leads.length) return '';
+  let html = `<div class="card"><div class="card-title">Contatos</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed">
+      <thead><tr style="text-align:left;color:var(--text2);font-size:11px">
+        <th style="padding:6px 4px;width:22%">Nome</th>
+        <th style="padding:6px 4px;width:20%">Horário</th>
+        <th style="padding:6px 4px;width:33%">Anúncio</th>
+        <th style="padding:6px 4px;width:25%">Status</th>
+      </tr></thead><tbody>`;
+  leads.slice(0, 30).forEach(l => {
+    const nome = [l.first_name, l.last_name].filter(Boolean).join(' ') || '—';
+    const horario = l.created_at ? new Date(l.created_at).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '—';
+    const anuncio = l.ANUNCIO || '—';
+    const st = STATUS_LABELS[l.etapa_lead] || STATUS_LABELS.L;
+    html += `<tr style="border-top:0.5px solid var(--border)">
+      <td style="padding:7px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nome}</td>
+      <td style="padding:7px 4px;color:var(--text2)">${horario}</td>
+      <td style="padding:7px 4px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${anuncio}</td>
+      <td style="padding:7px 4px"><span style="font-size:10px;background:${st.bg};color:${st.color};padding:2px 8px;border-radius:20px">${st.label}</span></td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+function renderSectionTabs(c) {
+  const el = document.getElementById('section-tabs');
+  if (!el) return;
+  if (!c.instagram_handle) { el.innerHTML = ''; activeSection = 'pago'; return; }
+  el.innerHTML = `
+    <div class="ptab ${activeSection==='pago'?'active':''}" onclick="setSection('pago')">Tráfego Pago</div>
+    <div class="ptab ${activeSection==='organico'?'active':''}" onclick="setSection('organico')">Orgânico</div>
+  `;
+}
+
+function setSection(s) { activeSection = s; renderContent(); }
+
+function renderOrganicContent(c) {
+  let html = `<div class="obj-bar"><span class="platform-badge badge-obj">Instagram</span>@${escapeHtml(c.instagram_handle)}</div>`;
+
+  if (!currentOrganicSummary) {
+    html += `<div class="empty">Ainda sem dados orgânicos coletados para este cliente.</div>`;
+    document.getElementById('content').innerHTML = html;
+    return;
+  }
+
+  const s = currentOrganicSummary;
+  const posts = currentOrganicPosts || [];
+  const avgLikes = posts.length ? Math.round(posts.reduce((a,p) => a + (Number(p.like_count)||0), 0) / posts.length) : 0;
+  const avgComments = posts.length ? Math.round(posts.reduce((a,p) => a + (Number(p.comments_count)||0), 0) / posts.length) : 0;
+
+  html += `<div class="card"><div class="card-title">Perfil</div><div class="metric-grid">
+    ${metricBox('Seguidores', fmt(s.followers_count), 'Número total de seguidores da conta no momento da última coleta.')}
+    ${metricBox('Publicações', fmt(s.media_count), 'Total de publicações da conta.')}
+    ${metricBox('Taxa de engajamento', (s.engagement_rate != null ? s.engagement_rate.toFixed(2)+'%' : '—'), 'Média de curtidas + comentários das publicações recentes, sobre o total de seguidores.')}
+    ${metricBox('Média de curtidas', fmt(avgLikes), 'Média de curtidas nas publicações recentes analisadas.')}
+    ${metricBox('Média de comentários', fmt(avgComments), 'Média de comentários nas publicações recentes analisadas.')}
+  </div></div>`;
+
+  if (posts.length) {
+    html += `<div class="card"><div class="card-title">Publicações recentes</div><div class="metric-grid">`;
+    posts.forEach(p => {
+      const data = p.timestamp ? new Date(p.timestamp).toLocaleDateString('pt-BR') : '—';
+      html += `<div class="metric" style="min-width:150px">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${data}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${fmt(p.like_count)} curtidas</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">${fmt(p.comments_count)} comentários</div>
+        ${p.permalink ? `<a href="${p.permalink}" target="_blank" rel="noopener" style="font-size:11px;color:var(--orange)">Ver post ↗</a>` : ''}
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  document.getElementById('content').innerHTML = html;
 }
 // ══════════════════════════════════════════
 // GRÁFICO DE EVOLUÇÃO (SVG VANILLA) — valores visíveis nos pontos
@@ -811,7 +1035,7 @@ async function submitReport() {
 }
 
 function openNewClientModal() {
-  ['cm-name','cm-objective','cm-budget-meta','cm-budget-google'].forEach(id => document.getElementById(id).value = '');
+  ['cm-name','cm-objective','cm-budget-meta','cm-budget-google','cm-instagram'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('client-modal').classList.add('open');
 }
 function closeClientModal() { document.getElementById('client-modal').classList.remove('open'); }
@@ -830,10 +1054,13 @@ async function submitNewClient() {
 
   const token = Array.from(crypto.getRandomValues(new Uint8Array(6))).map(b => b.toString(16).padStart(2,'0')).join('');
 
+  const instagramHandle = document.getElementById('cm-instagram').value.trim().replace(/^@/, '');
+
   const client = {
     id, name, objective: document.getElementById('cm-objective').value.trim(),
     budget_meta: budgetMeta, budget_google: budgetGoogle,
-    platforms, token, active: true
+    platforms, token, active: true,
+    instagram_handle: instagramHandle || null
   };
 
   try {
@@ -882,6 +1109,25 @@ async function loadAndRender() {
     console.error(e);
     currentReports = [];
   }
+
+  const autoCfg = AUTOMATION_CONFIG[activeClientId];
+  if (autoCfg) {
+    currentLeads = await loadLeads(autoCfg.leads, rangeStart, rangeEnd);
+    currentAdInsights = await loadAdInsights(autoCfg.ads, rangeStart, rangeEnd);
+  } else {
+    currentLeads = [];
+    currentAdInsights = [];
+  }
+
+  if (c.instagram_handle) {
+    currentOrganicSummary = await loadOrganicSummary(activeClientId);
+    currentOrganicPosts = await loadOrganicPosts(activeClientId);
+  } else {
+    currentOrganicSummary = null;
+    currentOrganicPosts = [];
+    activeSection = 'pago';
+  }
+
   renderContent();
 }
 
@@ -895,6 +1141,7 @@ async function init() {
     }
     const firstActive = ALL_CLIENTS.find(c => c.active) || ALL_CLIENTS[0];
     activeClientId = firstActive.id;
+    AUTOMATION_CONFIG = await loadAutomationConfig();
     setPreset('week');
   } catch(e) {
     console.error('Erro ao inicializar:', e);
@@ -1171,7 +1418,7 @@ function aggregateMetaCsvByDayMapped(rows, mapping) {
     if (!byDay[day]) byDay[day] = { alcance: 0, investimento: 0, conversas: 0, visitas: 0, seguidores: 0, cliques: 0, has: {} };
 
     byDay[day].alcance += parseFloat(r['Alcance']) || 0;
-    byDay[day].investimento += parseFloat(r['Valor gasto (BRL)'] || r['Valor usado (BRL)']) || 0;
+    byDay[day].investimento += parseFloat(r['Valor usado (BRL)']) || 0;
 
     // 1º) Colunas diretas nomeadas (nível de conta) — têm PRIORIDADE.
     // Marcamos quais campos já foram preenchidos por elas nesta linha, para
@@ -1218,6 +1465,7 @@ function openEditClientModal() {
   document.getElementById('em-objective').value = c.objective || '';
   document.getElementById('em-budget-meta').value = c.budget_meta || 0;
   document.getElementById('em-budget-google').value = c.budget_google || 0;
+  document.getElementById('em-instagram').value = c.instagram_handle || '';
   document.getElementById('em-platform-meta').checked = (c.platforms||[]).includes('meta');
   document.getElementById('em-platform-google').checked = (c.platforms||[]).includes('google');
   document.getElementById('em-active').checked = c.active;
@@ -1235,6 +1483,8 @@ async function submitEditClient() {
 
   const newName = document.getElementById('em-name').value.trim();
 
+  const instagramHandle = document.getElementById('em-instagram').value.trim().replace(/^@/, '');
+
   const updates = {
     name: newName || c.name,
     objective: document.getElementById('em-objective').value.trim(),
@@ -1242,6 +1492,7 @@ async function submitEditClient() {
     budget_google: Number((document.getElementById('em-budget-google').value || '0').replace(',','.')),
     platforms,
     active: document.getElementById('em-active').checked,
+    instagram_handle: instagramHandle || null,
   };
 
   try {
@@ -1349,6 +1600,80 @@ function copyReportPreview() {
   }).catch(() => { document.execCommand('copy'); });
 }
 
+// ══════════════════════════════════════════
+// PILARZINHO — assistente IA (ChatGPT via n8n)
+// ══════════════════════════════════════════
+let pzOpen = false;
+let pzHistory = [];
+
+function togglePilarzinho(force) {
+  pzOpen = (force !== undefined) ? force : !pzOpen;
+  document.getElementById('pilarzinho-panel').classList.toggle('open', pzOpen);
+  document.getElementById('pilarzinho-widget').style.display = pzOpen ? 'none' : 'block';
+  if (pzOpen) {
+    const client = ALL_CLIENTS.find(c => c.id === activeClientId);
+    document.getElementById('pz-hsub').textContent = client ? client.name : '';
+    if (!pzHistory.length) {
+      pzAddMessage('assistant', 'Olá! Sou o Pilarzinho, especialista em métricas e tráfego pago da Pilar. Posso comentar os resultados de tráfego pago e do orgânico deste cliente, gerar um resumo do período ou só bater um papo. O que você quer saber?');
+    }
+    document.getElementById('pz-input').focus();
+  }
+}
+
+function pzResetConversation() {
+  pzHistory = [];
+  const wrap = document.getElementById('pz-messages');
+  if (wrap) wrap.innerHTML = '';
+}
+
+function pzAddMessage(role, text) {
+  pzHistory.push({ role, text });
+  const wrap = document.getElementById('pz-messages');
+  const div = document.createElement('div');
+  div.className = 'pz-msg pz-msg-' + role;
+  div.textContent = text;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+async function sendPilarzinhoMessage() {
+  const input = document.getElementById('pz-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  pzAddMessage('user', text);
+
+  const wrap = document.getElementById('pz-messages');
+  const loading = document.createElement('div');
+  loading.className = 'pz-msg pz-msg-assistant pz-loading';
+  loading.id = 'pz-loading';
+  loading.textContent = 'Pilarzinho está digitando...';
+  wrap.appendChild(loading);
+  wrap.scrollTop = wrap.scrollHeight;
+
+  try {
+    const res = await fetch(PILARZINHO_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: activeClientId,
+        message: text,
+        history: pzHistory.slice(0, -1).slice(-10),
+        range_start: rangeStart,
+        range_end: rangeEnd
+      })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    document.getElementById('pz-loading')?.remove();
+    pzAddMessage('assistant', data.reply || 'Não consegui montar uma resposta agora. Tenta de novo em instantes.');
+  } catch (e) {
+    document.getElementById('pz-loading')?.remove();
+    pzAddMessage('assistant', 'Não consegui conectar com o Pilarzinho agora. Verifique se o workflow no n8n está ativo.');
+    console.error('Erro Pilarzinho:', e);
+  }
+}
+
 </script>
 <!-- Modal: Report Preview -->
 <div class="modal-overlay" id="report-preview-modal">
@@ -1400,6 +1725,7 @@ function copyReportPreview() {
       <div class="form-field"><label>Orçamento Meta (R$/mês)</label><input type="text" id="em-budget-meta" /></div>
       <div class="form-field"><label>Orçamento Google (R$/mês)</label><input type="text" id="em-budget-google" /></div>
     </div>
+    <div class="form-field" style="margin-bottom:10px"><label>Instagram (@, opcional — ativa métricas orgânicas)</label><input type="text" id="em-instagram" placeholder="Ex: agenciapilar" /></div>
     <div style="display:flex;gap:16px;margin:10px 0">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="em-platform-meta" /> Meta Ads</label>
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="em-platform-google" /> Google Ads</label>
@@ -1409,6 +1735,56 @@ function copyReportPreview() {
       <button onclick="closeEditClientModal()">Cancelar</button>
       <button class="primary" onclick="submitEditClient()">Salvar alterações</button>
     </div>
+  </div>
+</div>
+
+<!-- Pilarzinho — mascote/assistente IA. Admin only por enquanto (ver comentário
+     em PILARZINHO_WEBHOOK_URL sobre reaproveitar este bloco no pilar_cliente.html). -->
+<div id="pilarzinho-widget">
+  <div id="pz-greet-bubble">Olá! Como posso ajudar você?</div>
+  <button id="pilarzinho-launcher" onclick="togglePilarzinho()" aria-label="Abrir assistente Pilarzinho">
+    <svg class="pz-mascot" viewBox="0 0 200 250" role="img">
+      <title>Pilarzinho</title>
+      <ellipse cx="100" cy="238" rx="46" ry="8" fill="#153B45" opacity="0.08"/>
+      <rect x="72" y="205" width="56" height="14" rx="3" fill="#1F95FF"/>
+      <rect x="65" y="70" width="70" height="140" fill="#153B45"/>
+      <g stroke="#F4F2EC" stroke-width="1.1" opacity="0.55">
+        <line x1="76" y1="76" x2="76" y2="205"/><line x1="90" y1="76" x2="90" y2="205"/>
+        <line x1="104" y1="76" x2="104" y2="205"/><line x1="118" y1="76" x2="118" y2="205"/>
+      </g>
+      <rect x="58" y="55" width="84" height="16" rx="3" fill="#153B45"/>
+      <path d="M63 55 Q68 36 100 34 Q132 36 137 55 Z" fill="#153B45"/>
+      <path d="M83 46 L100 38 L100 52 L92 52 Z" fill="#FF730B"/>
+      <path d="M117 46 L100 38 L100 52 L108 52 Z" fill="#FF730B"/>
+      <g class="pz-eyes">
+        <ellipse cx="86" cy="115" rx="10" ry="12" fill="#F4F2EC" stroke="#153B45" stroke-width="1.2"/>
+        <ellipse cx="114" cy="115" rx="10" ry="12" fill="#F4F2EC" stroke="#153B45" stroke-width="1.2"/>
+        <circle cx="88" cy="117" r="4.2" fill="#153B45"/>
+        <circle cx="116" cy="117" r="4.2" fill="#153B45"/>
+      </g>
+      <circle cx="78" cy="130" r="5.5" fill="#FF730B" opacity="0.35"/>
+      <circle cx="122" cy="130" r="5.5" fill="#FF730B" opacity="0.35"/>
+      <path d="M84 140 Q100 154 116 140" fill="none" stroke="#FF730B" stroke-width="2.6" stroke-linecap="round"/>
+      <g class="pz-arm">
+        <path d="M135 145 Q160 122 172 90" fill="none" stroke="#FF730B" stroke-width="6" stroke-linecap="round"/>
+        <circle cx="173" cy="87" r="7" fill="#FF730B"/>
+      </g>
+    </svg>
+  </button>
+</div>
+
+<div class="pz-panel" id="pilarzinho-panel">
+  <div class="pz-panel-header">
+    <div class="pz-htext">
+      <div class="pz-htitle">Pilarzinho</div>
+      <div class="pz-hsub" id="pz-hsub"></div>
+    </div>
+    <button class="pz-close" onclick="togglePilarzinho(false)" aria-label="Fechar">✕</button>
+  </div>
+  <div class="pz-messages" id="pz-messages"></div>
+  <div class="pz-input-row">
+    <input type="text" id="pz-input" placeholder="Pergunte sobre as campanhas..." onkeydown="if(event.key==='Enter') sendPilarzinhoMessage()" />
+    <button onclick="sendPilarzinhoMessage()">Enviar</button>
   </div>
 </div>
 
