@@ -148,8 +148,8 @@
   .pz-arm { animation: pzwave 1.9s ease-in-out infinite; transform-origin: 135px 145px; }
   .pz-eyes { animation: pzblink 4.5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   #pilarzinho-launcher { display:block; width:100%; background:none; border:none; padding:0; cursor:pointer; }
-  #pz-greet-bubble { position:absolute; bottom:100%; left:50%; transform:translateX(-50%); margin-bottom:2px; background:var(--bg); border:0.5px solid var(--border2); border-radius:12px; padding:8px 12px; font-size:13px; width:190px; text-align:center; color:var(--text); box-shadow:0 4px 12px rgba(0,0,0,.12); animation: pzbubblefade 6s ease-in-out infinite; }
-  #pz-greet-bubble::after { content:''; position:absolute; bottom:-5px; left:50%; transform:translateX(-50%) rotate(45deg); width:9px; height:9px; background:var(--bg); border-right:0.5px solid var(--border2); border-bottom:0.5px solid var(--border2); }
+  #pz-greet-bubble { position:absolute; bottom:100%; right:0; margin-bottom:2px; background:var(--bg); border:0.5px solid var(--border2); border-radius:12px; padding:8px 12px; font-size:13px; width:190px; text-align:center; color:var(--text); box-shadow:0 4px 12px rgba(0,0,0,.12); animation: pzbubblefade 6s ease-in-out infinite; }
+  #pz-greet-bubble::after { content:''; position:absolute; bottom:-5px; right:34px; transform:rotate(45deg); width:9px; height:9px; background:var(--bg); border-right:0.5px solid var(--border2); border-bottom:0.5px solid var(--border2); }
   .pz-panel { display:none; flex-direction:column; position:fixed; right:24px; bottom:24px; width:340px; max-height:min(520px,80vh); background:var(--bg); border:0.5px solid var(--border2); border-radius:var(--radius-lg); box-shadow:0 8px 28px rgba(0,0,0,.18); z-index:160; overflow:hidden; }
   .pz-panel.open { display:flex; }
   .pz-panel-header { background:var(--dark); color:#fff; padding:12px 14px; display:flex; align-items:center; gap:10px; }
