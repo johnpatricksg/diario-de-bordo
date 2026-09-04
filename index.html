@@ -1306,7 +1306,12 @@ function handleCsvFileSelect(input) {
       `<strong>${file.name}</strong><br>${parsed.length} linhas · ${days.size} dias identificados` +
       (days.size ? `<br>Período: ${[...days].sort()[0]} até ${[...days].sort().slice(-1)[0]}` : '') +
       (hasFollowerCol ? `<br>✅ Coluna "Seguidores no Instagram" detectada — será somada automaticamente.` : '') +
-      (directCols.length ? `<br>✅ ${directCols.map(c => `"${c}"`).join(', ')} detectada(s) — será(ão) somada(s) automaticamente.` : '');
+      (directCols.length ? `<br>✅ ${directCols.map(c => `"${c}"`).join(', ')} detectada(s) — será(ão) somada(s) automaticamente.` : '') +
+      (platform === 'meta'
+        ? (findSpendColumn(parsed[0])
+            ? `<br>✅ Investimento será lido da coluna "${findSpendColumn(parsed[0])}".`
+            : `<br><span style="color:#E24B4A">⚠️ Nenhuma coluna de investimento reconhecida neste arquivo — o valor entrará como R$ 0,00. Confira se o export inclui "Valor gasto" ou "Valor usado".</span>`)
+        : '');
 
     if (platform === 'meta') {
       const types = detectResultTypes(parsed);
@@ -1462,6 +1467,24 @@ const DIRECT_META_COLUMNS = {
   'Novos seguidores da Página': 'seguidores',
 };
 
+
+// Os exports da Meta mudam o nome da coluna de investimento conforme a versão
+// e a moeda da conta ("Valor usado (BRL)", "Valor gasto (BRL)", "Amount spent (USD)"...).
+// Em vez de fixar um nome, procuramos por prefixo.
+const SPEND_COL_PREFIXES = ['Valor usado', 'Valor gasto', 'Amount spent'];
+
+function findSpendColumn(row) {
+  if (!row) return null;
+  return Object.keys(row).find(k =>
+    SPEND_COL_PREFIXES.some(p => k.trim().toLowerCase().startsWith(p.toLowerCase()))
+  ) || null;
+}
+
+function readSpend(row) {
+  const col = findSpendColumn(row);
+  return col ? (parseFloat(row[col]) || 0) : 0;
+}
+
 function aggregateMetaCsvByDayMapped(rows, mapping) {
   const byDay = {};
   rows.forEach(r => {
@@ -1470,7 +1493,7 @@ function aggregateMetaCsvByDayMapped(rows, mapping) {
     if (!byDay[day]) byDay[day] = { alcance: 0, investimento: 0, conversas: 0, visitas: 0, seguidores: 0, cliques: 0, has: {} };
 
     byDay[day].alcance += parseFloat(r['Alcance']) || 0;
-    byDay[day].investimento += parseFloat(r['Valor usado (BRL)']) || 0;
+    byDay[day].investimento += readSpend(r);
 
     // 1º) Colunas diretas nomeadas (nível de conta) — têm PRIORIDADE.
     // Marcamos quais campos já foram preenchidos por elas nesta linha, para
